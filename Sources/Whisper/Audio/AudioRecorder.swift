@@ -23,6 +23,7 @@ final class AudioRecorder: ObservableObject {
 
     private var lastLevelPost = Date.distantPast
     private var smoothed: Float = 0
+    private var peakLevel: Float = 0
 
     private let minDuration: TimeInterval = 0.2
 
@@ -59,6 +60,7 @@ final class AudioRecorder: ObservableObject {
         pcm.removeAll(keepingCapacity: true)
         recording = true
         startTime = Date()
+        peakLevel = 0
         lock.unlock()
     }
 
@@ -75,6 +77,12 @@ final class AudioRecorder: ObservableObject {
 
         if let started = started, Date().timeIntervalSince(started) < minDuration { return nil }
         guard !raw.isEmpty else { return nil }
+        // Silence gate: STT models hallucinate ("Thank you.") on silent audio,
+        // which would paste garbage on an accidental hotkey press.
+        if peakLevel < 0.03 {
+            NSLog("AudioRecorder: discarding silent take (peak %.3f)", peakLevel)
+            return nil
+        }
         return Self.wav(fromPCM: raw, sampleRate: 16_000, channels: 1, bitsPerSample: 16)
     }
 
@@ -157,6 +165,7 @@ final class AudioRecorder: ObservableObject {
         let rms = sqrtf(sum / Float(frames))
         let norm = min(1, rms * 12) // rough gain to spread quiet speech across 0...1
         smoothed = smoothed * 0.8 + norm * 0.2
+        if norm > peakLevel { peakLevel = norm }
 
         let now = Date()
         guard now.timeIntervalSince(lastLevelPost) >= 1.0 / 30.0 else { return }
