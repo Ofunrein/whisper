@@ -191,6 +191,20 @@ private struct OutputTab: View {
                 }
                 .padding(8)
             }
+
+            GroupBox("Pill Position") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Placement", selection: $store.settings.pillPlacement) {
+                        ForEach(PillPlacement.allCases) { p in
+                            Text(p.displayName).tag(p)
+                        }
+                    }
+                    Text("You can also drag the pill anywhere; dragging switches to Custom.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(8)
+            }
         }
         .padding(.top, 8)
     }
@@ -305,8 +319,14 @@ private struct HotkeyTab: View {
         case .fnKey:
             return "Fn key (\(binding.style.rawValue))"
         case .keyCombo:
-            let code = binding.keyCode.map(String.init) ?? "?"
-            return "Key combo (code \(code), \(binding.style.rawValue))"
+            var parts: [String] = []
+            let flags = NSEvent.ModifierFlags(rawValue: UInt(binding.modifiers ?? 0))
+            if flags.contains(.control) { parts.append("⌃") }
+            if flags.contains(.option) { parts.append("⌥") }
+            if flags.contains(.shift) { parts.append("⇧") }
+            if flags.contains(.command) { parts.append("⌘") }
+            parts.append(keyName(for: binding.keyCode ?? 0))
+            return "\(parts.joined()) (\(binding.style.rawValue))"
         case .mouseButton:
             let name: String
             switch binding.mouseButton {
@@ -317,5 +337,21 @@ private struct HotkeyTab: View {
             }
             return "\(name) (\(binding.style.rawValue))"
         }
+    }
+
+    private func keyName(for keyCode: UInt16) -> String {
+        let names: [UInt16: String] = [
+            49: "Space", 36: "Return", 48: "Tab", 51: "Delete", 53: "Esc",
+            123: "←", 124: "→", 125: "↓", 126: "↑",
+            122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6",
+            98: "F7", 100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12",
+            0: "A", 11: "B", 8: "C", 2: "D", 14: "E", 3: "F", 5: "G", 4: "H",
+            34: "I", 38: "J", 40: "K", 37: "L", 46: "M", 45: "N", 31: "O",
+            35: "P", 12: "Q", 15: "R", 1: "S", 17: "T", 32: "U", 9: "V",
+            13: "W", 7: "X", 16: "Y", 6: "Z",
+            29: "0", 18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6",
+            26: "7", 28: "8", 25: "9",
+        ]
+        return names[keyCode] ?? "Key \(keyCode)"
     }
 }

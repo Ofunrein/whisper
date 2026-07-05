@@ -38,12 +38,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.onRecordStop = { [weak self] in self?.pipeline.recordStop() }
         hotkeys.start()
 
-        // Keep bindings in sync with Settings edits.
+        // Keep bindings + pill placement in sync with Settings edits.
         settingsCancellable = SettingsStore.shared.$settings
-            .map(\.bindings)
             .removeDuplicates()
-            .sink { [weak self] bindings in
-                self?.hotkeys.updateBindings(bindings)
+            .sink { [weak self] settings in
+                self?.hotkeys.updateBindings(settings.bindings)
+                if settings.pillPlacement != .custom {
+                    PillController.shared.applyPlacement(settings.pillPlacement)
+                }
             }
     }
 

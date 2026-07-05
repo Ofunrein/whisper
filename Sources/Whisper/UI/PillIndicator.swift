@@ -59,13 +59,22 @@ final class PillController: NSObject {
         positionAtDefaultOrRestoredLocation()
     }
 
+    private var programmaticMove = false
+
     private func observeNotifications() {
         didMoveObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification,
             object: panel,
             queue: .main
         ) { [weak self] _ in
-            self?.persistPosition()
+            guard let self, !self.programmaticMove else { return }
+            // A user drag switches to a custom placement.
+            var settings = SettingsStore.shared.settings
+            if settings.pillPlacement != .custom {
+                settings.pillPlacement = .custom
+                SettingsStore.shared.settings = settings
+            }
+            self.persistPosition()
         }
 
         screenParamsObserver = NotificationCenter.default.addObserver(
@@ -95,10 +104,41 @@ final class PillController: NSObject {
 
     func setState(_ s: PillState) {
         let newSize = (s == .collapsed) ? collapsedSize : expandedSize
-        withAnimation(.easeInOut(duration: 0.18)) {
+        // SuperWhisper-style: springy expand when activating.
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
             model.state = s
         }
-        resizeKeepingCenterX(to: newSize, animated: true)
+        resizeKeepingAnchor(to: newSize, animated: true)
+    }
+
+    /// Apply a preset placement (or restore the custom drag position).
+    func applyPlacement(_ placement: PillPlacement) {
+        guard let screen = NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        let size = panel.frame.size
+        let margin: CGFloat = 24
+        var origin: NSPoint
+
+        switch placement {
+        case .bottomCenter: origin = NSPoint(x: visible.midX - size.width / 2, y: visible.minY + margin)
+        case .bottomLeft:   origin = NSPoint(x: visible.minX + margin, y: visible.minY + margin)
+        case .bottomRight:  origin = NSPoint(x: visible.maxX - size.width - margin, y: visible.minY + margin)
+        case .topCenter:    origin = NSPoint(x: visible.midX - size.width / 2, y: visible.maxY - size.height - margin)
+        case .topLeft:      origin = NSPoint(x: visible.minX + margin, y: visible.maxY - size.height - margin)
+        case .topRight:     origin = NSPoint(x: visible.maxX - size.width - margin, y: visible.maxY - size.height - margin)
+        case .custom:
+            let s = SettingsStore.shared.settings
+            guard let x = s.pillPositionX, let y = s.pillPositionY else { return }
+            origin = NSPoint(x: x, y: y)
+        }
+
+        programmaticMove = true
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.2
+            panel.animator().setFrameOrigin(origin)
+        }, completionHandler: { [weak self] in
+            self?.programmaticMove = false
+        })
     }
 
     func setLevel(_ f: Float) {
@@ -108,21 +148,7 @@ final class PillController: NSObject {
     // MARK: - Positioning
 
     private func positionAtDefaultOrRestoredLocation() {
-        let settings = SettingsStore.shared.settings
-        guard let screen = NSScreen.main else { return }
-        let visible = screen.visibleFrame
-        var origin: NSPoint
-
-        if let x = settings.pillPositionX, let y = settings.pillPositionY {
-            origin = NSPoint(x: x, y: y)
-        } else {
-            let size = panel.frame.size
-            origin = NSPoint(
-                x: visible.midX - size.width / 2,
-                y: visible.minY + 24
-            )
-        }
-        panel.setFrameOrigin(origin)
+        applyPlacement(SettingsStore.shared.settings.pillPlacement)
         avoidDockAndBounds(animated: false)
     }
 
@@ -134,21 +160,29 @@ final class PillController: NSObject {
         SettingsStore.shared.settings = settings
     }
 
-    /// Resize the panel while keeping it horizontally centered on its current position.
-    private func resizeKeepingCenterX(to size: NSSize, animated: Bool) {
+    /// Resize the panel around its center so the expand/collapse feels anchored,
+    /// then clamp back inside the visible frame (handles top placements).
+    private func resizeKeepingAnchor(to size: NSSize, animated: Bool) {
         let oldFrame = panel.frame
-        let centerX = oldFrame.midX
         var newFrame = NSRect(
-            x: centerX - size.width / 2,
-            y: oldFrame.minY,
+            x: oldFrame.midX - size.width / 2,
+            y: oldFrame.midY - size.height / 2,
             width: size.width,
             height: size.height
         )
         newFrame = clampedFrame(newFrame, toScreenContaining: oldFrame)
+        programmaticMove = true
         if animated {
-            panel.animator().setFrame(newFrame, display: true, animate: true)
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.22
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(newFrame, display: true)
+            }, completionHandler: { [weak self] in
+                self?.programmaticMove = false
+            })
         } else {
             panel.setFrame(newFrame, display: true)
+            programmaticMove = false
         }
     }
 

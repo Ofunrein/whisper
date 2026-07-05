@@ -49,6 +49,26 @@ enum HotkeyTriggerStyle: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// SuperWhisper-style pill placements along the screen edges, plus a
+/// free-form custom position set by dragging.
+enum PillPlacement: String, Codable, CaseIterable, Identifiable {
+    case bottomCenter, bottomLeft, bottomRight
+    case topCenter, topLeft, topRight
+    case custom
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .bottomCenter: return "Bottom Center"
+        case .bottomLeft: return "Bottom Left"
+        case .bottomRight: return "Bottom Right"
+        case .topCenter: return "Top Center"
+        case .topLeft: return "Top Left"
+        case .topRight: return "Top Right"
+        case .custom: return "Custom (drag the pill)"
+        }
+    }
+}
+
 /// A configurable binding: either the Fn key, a key combo, or a mouse button.
 struct HotkeyBinding: Codable, Equatable {
     enum Kind: String, Codable { case fnKey, keyCombo, mouseButton }
@@ -90,6 +110,7 @@ struct AppSettings: Codable, Equatable {
     var openAICleanupModel: String = "gpt-4o-mini"
     var ollamaModel: String = "llama3.2"
     var ollamaBaseURL: String = "http://localhost:11434"
+    var pillPlacement: PillPlacement = .bottomCenter
     var pillPositionX: Double? = nil
     var pillPositionY: Double? = nil
 }
