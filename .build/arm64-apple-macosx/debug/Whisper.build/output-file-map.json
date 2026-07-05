@@ -1,0 +1,173 @@
+{
+  "": {
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/primary.swiftdeps"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/AudioRecorder.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Permissions/Permissions.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Permissions.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Permissions.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Permissions~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Permissions.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Permissions.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Pipeline/DictationPipeline.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DictationPipeline.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DictationPipeline.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DictationPipeline~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DictationPipeline.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DictationPipeline.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/Cleanup/GeminiCleanup.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GeminiCleanup.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GeminiCleanup.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GeminiCleanup~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GeminiCleanup.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GeminiCleanup.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/Cleanup/OllamaCleanup.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OllamaCleanup.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OllamaCleanup.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OllamaCleanup~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OllamaCleanup.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OllamaCleanup.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/Cleanup/OpenAICompatCleanup.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAICompatCleanup.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAICompatCleanup.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAICompatCleanup~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAICompatCleanup.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAICompatCleanup.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/MultipartFormBuilder.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MultipartFormBuilder.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MultipartFormBuilder.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MultipartFormBuilder~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MultipartFormBuilder.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MultipartFormBuilder.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/ProviderFactory.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderFactory.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderFactory.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderFactory~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderFactory.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderFactory.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/ProviderProtocols.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderProtocols.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderProtocols.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderProtocols~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderProtocols.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ProviderProtocols.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/STT/DeepgramTranscriber.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DeepgramTranscriber.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DeepgramTranscriber.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DeepgramTranscriber~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DeepgramTranscriber.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/DeepgramTranscriber.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/STT/ElevenLabsTranscriber.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ElevenLabsTranscriber.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ElevenLabsTranscriber.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ElevenLabsTranscriber~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ElevenLabsTranscriber.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ElevenLabsTranscriber.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/STT/GroqTranscriber.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GroqTranscriber.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GroqTranscriber.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GroqTranscriber~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GroqTranscriber.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/GroqTranscriber.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/STT/LocalWhisperTranscriber.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/LocalWhisperTranscriber.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/LocalWhisperTranscriber.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/LocalWhisperTranscriber~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/LocalWhisperTranscriber.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/LocalWhisperTranscriber.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Providers/STT/OpenAITranscriber.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAITranscriber.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAITranscriber.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAITranscriber~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAITranscriber.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OpenAITranscriber.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Store/History.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/History.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/History.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/History~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/History.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/History.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Store/Keychain.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Keychain.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Keychain.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Keychain~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Keychain.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Keychain.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Store/Settings.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Settings.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Settings.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Settings~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Settings.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/Settings.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/UI/HistoryView.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HistoryView.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HistoryView.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HistoryView~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HistoryView.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HistoryView.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/UI/MenuBar.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MenuBar.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MenuBar.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MenuBar~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MenuBar.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/MenuBar.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/UI/PillIndicator.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/PillIndicator.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/PillIndicator.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/PillIndicator~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/PillIndicator.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/PillIndicator.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/UI/SettingsView.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SettingsView.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SettingsView.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SettingsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SettingsView.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SettingsView.dia"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/WhisperApp.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/WhisperApp.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/WhisperApp.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/WhisperApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/WhisperApp.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/WhisperApp.dia"
+  }
+}

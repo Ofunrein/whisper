@@ -1,0 +1,158 @@
+goal:
+  slug: whisper-app
+  title: "Whisper: macOS dictation app"
+  status: active
+  input_shape: existing_plan
+  oracle: "xcodebuild succeeds + unit tests pass + end-to-end dictation walkthrough"
+agents:
+  scout: unknown
+  worker: unknown
+  judge: unknown
+tasks:
+  - id: T001
+    type: pm
+    assignee: PM
+    status: done
+    objective: "Validate the existing plan and scaffold the Xcode-buildable SPM app skeleton: package/project layout, app entry, Info.plist, core types (Settings, HistoryEntry, provider protocols)."
+    receipt:
+      result: done
+      changed_files:
+        - Package.swift
+        - Sources/Whisper/WhisperApp.swift
+        - Sources/Whisper/Store/Settings.swift
+        - Sources/Whisper/Store/Keychain.swift
+        - Sources/Whisper/Store/History.swift
+        - Sources/Whisper/Providers/ProviderProtocols.swift
+        - Tests/WhisperTests/PlaceholderTests.swift
+      commands:
+        - cmd: swift build
+          status: pass
+      summary: "SPM executable skeleton builds. Core types: AppSettings (providers, output modes, hotkey bindings, verbatim cleanup instructions), Keychain wrapper, HistoryStore, provider protocols + shared keep-alive URLSession."
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Implement core system layer: HotkeyMonitor (CGEventTap keyboard Fn + combos + mouse buttons, hold/toggle), AudioRecorder (AVAudioEngine, RMS, 16kHz WAV, pre-warm), OutputRouter (paste/copy modes, clipboard save/restore, Cmd+V), Permissions."
+    allowed_files:
+      - "Sources/Whisper/Hotkey/**"
+      - "Sources/Whisper/Audio/**"
+      - "Sources/Whisper/Output/**"
+      - "Sources/Whisper/Permissions/**"
+    verify:
+      - "swift build"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - Sources/Whisper/Hotkey/HotkeyMonitor.swift
+        - Sources/Whisper/Audio/AudioRecorder.swift
+        - Sources/Whisper/Output/OutputRouter.swift
+        - Sources/Whisper/Permissions/Permissions.swift
+      commands:
+        - cmd: swift build
+          status: pass
+      summary: "Opus subagent delivered; PM reviewed HotkeyMonitor + OutputRouter line-by-line. Listen-only CGEventTap on dedicated thread with timeout re-enable, Fn/combo/mouse bindings hold+toggle; clipboard snapshot/restore of all pasteboard types with 0.3s restore delay; Cmd+V via CGEvent to cghidEventTap."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Implement providers: TranscriptionProvider (Groq, ElevenLabs Scribe v2, Deepgram nova-3, OpenAI, LocalWhisper stub w/ whisper-cli) and CleanupProvider (Groq, Cerebras, Gemini, Ollama, OpenAI) with shared keep-alive URLSession."
+    allowed_files:
+      - "Sources/Whisper/Providers/**"
+    verify:
+      - "swift build"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - Sources/Whisper/Providers/MultipartFormBuilder.swift
+        - Sources/Whisper/Providers/ProviderFactory.swift
+        - Sources/Whisper/Providers/STT/GroqTranscriber.swift
+        - Sources/Whisper/Providers/STT/ElevenLabsTranscriber.swift
+        - Sources/Whisper/Providers/STT/DeepgramTranscriber.swift
+        - Sources/Whisper/Providers/STT/OpenAITranscriber.swift
+        - Sources/Whisper/Providers/STT/LocalWhisperTranscriber.swift
+        - Sources/Whisper/Providers/Cleanup/OpenAICompatCleanup.swift
+        - Sources/Whisper/Providers/Cleanup/GeminiCleanup.swift
+        - Sources/Whisper/Providers/Cleanup/OllamaCleanup.swift
+      commands:
+        - cmd: swift build
+          status: pass
+      summary: "Sonnet subagent delivered; PM verified Groq/Gemini request construction against researched API docs (endpoints, headers, body shapes match). Shared MultipartFormBuilder; OpenAICompat struct reused for Groq/Cerebras/OpenAI cleanup; factory maps settings enums to implementations."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Implement UI: pill indicator (states, drag, persisted position, Dock avoidance), Settings window (keys, providers, output mode, cleanup toggle+instructions, hotkey config), History window (raw/cleaned toggle), menu bar."
+    allowed_files:
+      - "Sources/Whisper/UI/**"
+    verify:
+      - "swift build"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - Sources/Whisper/UI/PillIndicator.swift
+        - Sources/Whisper/UI/SettingsView.swift
+        - Sources/Whisper/UI/HistoryView.swift
+        - Sources/Whisper/UI/MenuBar.swift
+      commands:
+        - cmd: swift build
+          status: pass
+      summary: "Sonnet subagent delivered; PM reviewed PillIndicator line-by-line. Non-activating borderless statusBar panel, drag persistence via didMoveNotification, visibleFrame clamping on screen-parameter changes (Dock avoidance), collapsed/idle/recording(waveform)/processing states via TimelineView."
+  - id: T005
+    type: pm
+    assignee: PM
+    status: done
+    objective: "Integrate: DictationPipeline wiring hotkey->audio->STT->cleanup(time-boxed)->output->history; Keychain + Settings stores; app assembly; fix cross-module issues from T002-T004."
+    receipt:
+      result: done
+      changed_files:
+        - Sources/Whisper/Pipeline/DictationPipeline.swift
+        - Sources/Whisper/WhisperApp.swift
+        - Resources/Info.plist
+        - scripts/make-app.sh
+        - README.md
+      commands:
+        - cmd: swift build
+          status: pass
+        - cmd: ./scripts/make-app.sh
+          status: pass
+      summary: "Pipeline: hotkey -> prewarmed recorder -> STT -> time-boxed cleanup (task-group race, raw fallback) -> output router -> async history+audio save. App assembly wires menu bar, pill, hotkey bindings live-synced from Settings, permission gate with System Settings deep links. Ad-hoc-signed Whisper.app bundle builds."
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Unit tests: pipeline fallback (cleanup fail -> raw), provider request construction, settings persistence; make `swift test` green."
+    allowed_files:
+      - "Tests/**"
+      - "Package.swift"
+    verify:
+      - "swift test"
+    stop_if:
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - Tests/WhisperTests/PipelineTests.swift
+      commands:
+        - cmd: swift test
+          status: pass
+      summary: "8 tests green: cleanup-failure fallback, cleanup timeout deadline, WAV header correctness, multipart body shape, provider factory mapping for all kinds, settings Codable round-trip, verbatim default instructions. Executed by PM (small scope) instead of a subagent."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Final audit: build + tests green, walkthrough of oracle checklist, confirm full_outcome_complete."
+    receipt:
+      result: done
+      decision: "approved"
+      full_outcome_complete: false
+      rationale: "Automated oracle portions all pass: swift build green, swift test green (7 tests), Whisper.app bundle builds ad-hoc signed, app launches and stays running. All plan components implemented and PM-reviewed. Remaining: interactive walkthrough (hold Fn -> waveform -> paste; permissions grants; API keys) requires the human operator's mic/Accessibility TCC grants and real speech - cannot be automated. Goal stays open pending operator walkthrough."
+      blocked_tasks: []
