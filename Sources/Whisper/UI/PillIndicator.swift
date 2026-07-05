@@ -241,27 +241,31 @@ final class PillController: NSObject {
 
 // MARK: - SwiftUI content
 
+/// Matches the real Wispr Flow / SuperWhisper behavior observed on video:
+/// idle is an OUTLINED, unfilled capsule with dots; the moment recording
+/// starts the capsule becomes solid-filled and shows the waveform. That
+/// fill transition (not a colored dot) is what signals "it's recording".
 private struct PillContentView: View {
     @ObservedObject var model: PillLevelModel
+
+    private var isFilled: Bool {
+        model.state == .recording || model.state == .processing
+    }
 
     var body: some View {
         ZStack {
             Capsule()
-                .fill(Color.black.opacity(0.85))
-                .overlay(
-                    Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
-                )
+                .fill(Color.black.opacity(isFilled ? 0.88 : 0.35))
+            Capsule()
+                .strokeBorder(Color.white.opacity(isFilled ? 0.12 : 0.4), lineWidth: 1.25)
             switch model.state {
             case .collapsed:
                 EmptyView()
             case .idle:
                 IdleDotsView()
             case .recording:
-                HStack(spacing: 6) {
-                    RecordingDot()
-                    WaveformView(level: model.level)
-                }
-                .padding(.horizontal, 10)
+                WaveformView(level: model.level)
+                    .padding(.horizontal, 12)
             case .processing:
                 ProcessingSpinnerView()
             }
@@ -283,43 +287,31 @@ private struct IdleDotsView: View {
     }
 }
 
-/// Unmistakable "this is recording" cue: a pulsing red dot, matching the
-/// convention every recording app uses (QuickTime, Wispr Flow, etc.).
-private struct RecordingDot: View {
-    @State private var pulse = false
-
-    var body: some View {
-        Circle()
-            .fill(Color.red)
-            .frame(width: 7, height: 7)
-            .scaleEffect(pulse ? 1.15 : 0.85)
-            .opacity(pulse ? 1.0 : 0.55)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            }
-    }
-}
-
+/// Symmetric, center-weighted bar waveform matching the reference footage:
+/// Wispr Flow and SuperWhisper both render a small equalizer that's tallest
+/// in the middle and tapers toward the edges, pulsing with live mic level
+/// rather than jittering independently per bar.
 private struct WaveformView: View {
     let level: Float
-    private let barCount = 12
+    private let barCount = 9
 
     var body: some View {
         TimelineView(.animation) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 3) {
+            HStack(spacing: 2.5) {
                 ForEach(0..<barCount, id: \.self) { i in
-                    let jitter = 0.5 + 0.5 * sin(t * 6 + Double(i) * 0.9)
-                    let base = CGFloat(level)
-                    let height = 3 + (16 * base * CGFloat(jitter)) + CGFloat.random(in: 0...1.5)
+                    let mid = Double(barCount - 1) / 2
+                    let distanceFromCenter = abs(Double(i) - mid) / mid // 0 at center, 1 at edges
+                    let envelope = 1.0 - 0.65 * distanceFromCenter // center-weighted taper
+                    let sway = 0.7 + 0.3 * sin(t * 5 + Double(i) * 0.8) // organic, not random
+                    let base = CGFloat(max(0.12, Double(level)))
+                    let height = 4 + 15 * base * CGFloat(envelope) * CGFloat(sway)
                     RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.white.opacity(0.85))
-                        .frame(width: 2.5, height: max(3, min(20, height)))
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: 2.5, height: max(4, min(20, height)))
                 }
             }
-            .animation(.linear(duration: 0.08), value: level)
+            .animation(.easeInOut(duration: 0.12), value: level)
         }
     }
 }
