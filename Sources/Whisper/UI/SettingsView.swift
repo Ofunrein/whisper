@@ -188,6 +188,7 @@ private struct OutputTab: View {
                         }
                     }
                     Toggle("Save audio recordings", isOn: $store.settings.saveAudio)
+                    Toggle("Play sound when recording starts/stops", isOn: $store.settings.soundEffectsEnabled)
                 }
                 .padding(8)
             }

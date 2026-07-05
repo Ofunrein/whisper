@@ -32,6 +32,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/SoundPlayer.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift"
         },
         {
@@ -140,6 +144,7 @@
       "moduleOutputPath" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Modules/Whisper.swiftmodule",
       "objects" : [
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/AudioRecorder.swift.o",
+        "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/SoundPlayer.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/HotkeyMonitor.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/ModifierKeys.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/OutputRouter.swift.o",
@@ -216,6 +221,10 @@
         {
           "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/AudioRecorder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/SoundPlayer.swift.o"
         },
         {
           "kind" : "file",
@@ -321,6 +330,7 @@
       "prepareForIndexing" : false,
       "sources" : [
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/AudioRecorder.swift",
+        "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/SoundPlayer.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift",
@@ -559,6 +569,7 @@
       "whisper",
       "-c",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/AudioRecorder.swift",
+      "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/SoundPlayer.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift",
@@ -798,6 +809,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/SoundPlayer.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift"
         },
         {
@@ -1000,6 +1015,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/SoundPlayer.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/WhisperApp.swift.o"
         }
       ],
@@ -1121,6 +1140,10 @@
         {
           "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/SoundPlayer.swift.o"
         },
         {
           "kind" : "file",

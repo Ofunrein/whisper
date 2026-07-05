@@ -26,7 +26,7 @@ final class PillController: NSObject {
     private var screenParamsObserver: NSObjectProtocol?
 
     private let collapsedSize = NSSize(width: 56, height: 14)
-    private let expandedSize = NSSize(width: 110, height: 28)
+    private let expandedSize = NSSize(width: 128, height: 28)
 
     override init() {
         super.init()
@@ -244,8 +244,11 @@ private struct PillContentView: View {
             case .idle:
                 IdleDotsView()
             case .recording:
-                WaveformView(level: model.level)
-                    .padding(.horizontal, 10)
+                HStack(spacing: 6) {
+                    RecordingDot()
+                    WaveformView(level: model.level)
+                }
+                .padding(.horizontal, 10)
             case .processing:
                 ProcessingSpinnerView()
             }
@@ -264,6 +267,25 @@ private struct IdleDotsView: View {
                     .frame(width: 3.5, height: 3.5)
             }
         }
+    }
+}
+
+/// Unmistakable "this is recording" cue: a pulsing red dot, matching the
+/// convention every recording app uses (QuickTime, Wispr Flow, etc.).
+private struct RecordingDot: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.red)
+            .frame(width: 7, height: 7)
+            .scaleEffect(pulse ? 1.15 : 0.85)
+            .opacity(pulse ? 1.0 : 0.55)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
     }
 }
 

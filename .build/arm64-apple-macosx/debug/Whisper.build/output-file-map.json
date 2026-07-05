@@ -9,6 +9,13 @@
     "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder.swiftdeps",
     "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/AudioRecorder.dia"
   },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/SoundPlayer.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SoundPlayer.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SoundPlayer.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SoundPlayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SoundPlayer.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/SoundPlayer.dia"
+  },
   "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift": {
     "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.d",
     "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.swift.o",

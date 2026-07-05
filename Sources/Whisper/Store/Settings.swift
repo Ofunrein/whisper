@@ -103,6 +103,7 @@ struct AppSettings: Codable, Equatable {
     var cleanupTimeoutSeconds: Double = 6.0
     var outputMode: OutputMode = .pasteAtCursor
     var saveAudio: Bool = false
+    var soundEffectsEnabled: Bool = true
     var bindings: [HotkeyBinding] = [.defaultFn]
     var geminiModel: String = "gemini-3.5-flash"
     var groqCleanupModel: String = "openai/gpt-oss-20b"

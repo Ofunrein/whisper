@@ -26,15 +26,18 @@ final class DictationPipeline: ObservableObject {
         guard !busy else { return }
         recorder.prewarm()
         recorder.start()
+        SoundPlayer.playStart()
         onStateChange?(.recording)
     }
 
     func recordStop() {
         guard !busy else { return }
         guard let wav = recorder.stop() else {
+            SoundPlayer.playError()
             onStateChange?(.idle)
             return
         }
+        SoundPlayer.playStop()
         busy = true
         onStateChange?(.processing)
 
