@@ -14,6 +14,10 @@ Requires macOS 14+ and Xcode command line tools. On first launch, grant:
 - **Microphone** — System Settings → Privacy & Security → Microphone
 - **Accessibility** — System Settings → Privacy & Security → Accessibility (needed for the global hotkey and paste)
 
+Whisper only asks once per install; if permissions are missing after that it stays silent (check the menu bar / Settings yourself) instead of nagging on every launch.
+
+> Note: `make-app.sh` ad-hoc signs the app (no paid Apple Developer certificate). Ad-hoc signatures change every time the binary is rebuilt, so macOS can treat a rebuilt app as "new" and reset its Accessibility grant. If Whisper stops responding to the hotkey after a rebuild, re-check System Settings → Accessibility — you may need to re-toggle it once for that build. This goes away permanently if the app is signed with a real Developer ID.
+
 ## Use
 
 1. Open Settings from the menu bar icon and paste an API key for your chosen providers (stored in the Keychain).

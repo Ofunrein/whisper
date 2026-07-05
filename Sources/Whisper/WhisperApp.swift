@@ -53,16 +53,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.stop()
     }
 
+    /// Only ever nag the user once. After that, permissions are checked
+    /// silently (no OS prompt, no alert) so a rebuild/relaunch never asks
+    /// again for something already granted or already declined.
+    private static let hasPromptedKey = "whisper.hasPromptedForPermissionsOnce"
+
     private func checkPermissions() {
+        let micOK = Permissions.microphoneStatus() == .authorized
+        // Never pass prompt:true here: that triggers the native OS Accessibility
+        // dialog on every single launch until the user grants it. Check silently;
+        // only steer them to System Settings ourselves, and only once.
+        let axOK = Permissions.accessibilityTrusted(prompt: false)
+        guard !micOK || !axOK else { return }
+
+        let alreadyPrompted = UserDefaults.standard.bool(forKey: Self.hasPromptedKey)
+        guard !alreadyPrompted else {
+            NSLog("Whisper: permissions still missing (mic=\(micOK), accessibility=\(axOK)); not re-prompting, see menu bar / Settings.")
+            return
+        }
+        UserDefaults.standard.set(true, forKey: Self.hasPromptedKey)
+
         var missing: [PermissionGuidance] = []
-        if Permissions.microphoneStatus() != .authorized {
+        if !micOK {
             Permissions.requestMicrophone { _ in }
             missing.append(Permissions.guidance(for: .microphone))
         }
-        if !Permissions.accessibilityTrusted(prompt: true) {
+        if !axOK {
             missing.append(Permissions.guidance(for: .accessibility))
         }
-        guard !missing.isEmpty else { return }
 
         let alert = NSAlert()
         alert.messageText = "Whisper needs permissions"

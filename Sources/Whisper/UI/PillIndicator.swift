@@ -68,6 +68,19 @@ final class PillController: NSObject {
             queue: .main
         ) { [weak self] _ in
             guard let self, !self.programmaticMove else { return }
+
+            // Live-clamp during drag so the pill can never be dragged above the
+            // menu bar or below/behind the Dock, matching SuperWhisper. This
+            // fires continuously while the user drags, so re-entrancy is
+            // guarded: clamping to an already-valid frame is a no-op.
+            let current = self.panel.frame
+            let clamped = self.clampedFrame(current, toScreenContaining: current)
+            if clamped != current {
+                self.programmaticMove = true
+                self.panel.setFrame(clamped, display: true)
+                self.programmaticMove = false
+            }
+
             // A user drag switches to a custom placement.
             var settings = SettingsStore.shared.settings
             if settings.pillPlacement != .custom {
