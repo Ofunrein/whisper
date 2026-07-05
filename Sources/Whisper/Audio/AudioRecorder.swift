@@ -33,6 +33,26 @@ final class AudioRecorder: ObservableObject {
         _ = ensureEngineRunning()
     }
 
+    private var configObserver: NSObjectProtocol?
+
+    init() {
+        // Input device changes (AirPods connect, USB mic unplug) stop the
+        // engine and invalidate the tap format. Rebuild so the next
+        // recording works instead of silently capturing nothing.
+        configObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            NSLog("AudioRecorder: engine configuration changed, rebuilding")
+            self.engine.inputNode.removeTap(onBus: 0)
+            self.tapInstalled = false
+            self.engineRunning = false
+            _ = self.ensureEngineRunning()
+        }
+    }
+
     func start() {
         guard ensureEngineRunning() else { return }
         lock.lock()
@@ -64,13 +84,19 @@ final class AudioRecorder: ObservableObject {
         if engineRunning { return true }
         let input = engine.inputNode
         let hwFormat = input.outputFormat(forBus: 0)
-        guard hwFormat.sampleRate > 0 else { return false }
+        guard hwFormat.sampleRate > 0 else {
+            NSLog("AudioRecorder: input format sampleRate=0 (no mic access or no input device)")
+            return false
+        }
+        NSLog("AudioRecorder: engine starting, hw=%.0fHz %dch", hwFormat.sampleRate, hwFormat.channelCount)
 
         converter = AVAudioConverter(from: hwFormat, to: targetFormat)
 
         if !tapInstalled {
             input.installTap(onBus: 0, bufferSize: 4096, format: hwFormat) { [weak self] buffer, _ in
-                self?.process(buffer)
+                // Audio threads never drain autorelease pools on their own;
+                // without this, per-callback ObjC allocations accumulate forever.
+                autoreleasepool { self?.process(buffer) }
             }
             tapInstalled = true
         }
@@ -87,11 +113,15 @@ final class AudioRecorder: ObservableObject {
     }
 
     private func process(_ buffer: AVAudioPCMBuffer) {
-        publishLevel(from: buffer)
-
         lock.lock()
         let active = recording
         lock.unlock()
+
+        // Engine runs 24/7 (prewarmed); only push level updates to the main
+        // queue while recording. Idle dispatching at 30/s can pile up
+        // unboundedly if the main thread ever stalls — that was the 7GB blowup.
+        if active { publishLevel(from: buffer) }
+
         guard active, let converter = converter else { return }
 
         let ratio = targetFormat.sampleRate / buffer.format.sampleRate

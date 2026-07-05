@@ -24,6 +24,7 @@ final class DictationPipeline: ObservableObject {
 
     func recordStart() {
         guard !busy else { return }
+        NSLog("Whisper: recordStart")
         recorder.prewarm()
         recorder.start()
         SoundPlayer.playStart()
@@ -33,10 +34,12 @@ final class DictationPipeline: ObservableObject {
     func recordStop() {
         guard !busy else { return }
         guard let wav = recorder.stop() else {
+            NSLog("Whisper: recordStop -> no audio captured (too short or engine failed)")
             SoundPlayer.playError()
             onStateChange?(.idle)
             return
         }
+        NSLog("Whisper: recordStop -> %d bytes captured", wav.count)
         SoundPlayer.playStop()
         busy = true
         onStateChange?(.processing)
@@ -62,6 +65,10 @@ final class DictationPipeline: ObservableObject {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             NSLog("Whisper: transcription failed: \(error.localizedDescription)")
+            await MainActor.run {
+                SoundPlayer.playError()
+                PillController.shared.flashError()
+            }
             return
         }
         guard !raw.isEmpty else { return }
@@ -99,6 +106,11 @@ final class DictationPipeline: ObservableObject {
 
     /// Run cleanup with a deadline so paste never stalls; nil means "use raw".
     func cleanWithTimeout(_ text: String, settings: AppSettings) async -> String? {
+        await Self.cleanWithTimeout(text, settings: settings)
+    }
+
+    /// Static, UI-free version usable from selftest and tests.
+    static func cleanWithTimeout(_ text: String, settings: AppSettings) async -> String? {
         let cleaner = ProviderFactory.cleaner(for: settings)
         let instruction = settings.cleanupInstructions
         let timeout = settings.cleanupTimeoutSeconds

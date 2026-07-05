@@ -1,125 +1,85 @@
 import Foundation
-import CoreGraphics
+import AppKit
 
 /// Watches the keyboard/mouse for the configured hotkey bindings and fires
-/// record start/stop callbacks. Uses a listen-only CGEventTap on a dedicated
-/// thread so it never blocks event delivery.
+/// record start/stop callbacks.
+///
+/// Uses NSEvent global+local monitors instead of a CGEventTap: a CGEventTap
+/// on keyboard events silently requires the separate Input Monitoring TCC
+/// permission, while NSEvent monitors only need Accessibility (which the app
+/// already requests). This is the same fix OpenWhispr shipped.
 final class HotkeyMonitor {
     var onRecordStart: (() -> Void)?
     var onRecordStop: (() -> Void)?
 
-    private var tap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
-    private var thread: Thread?
-    private var tapRunLoop: CFRunLoop?
+    private var globalMonitors: [Any] = []
+    private var localMonitors: [Any] = []
 
-    private let lock = NSLock()
     private var bindings: [HotkeyBinding] = []
 
-    // Live state (only touched on the tap thread).
     private var fnDown = false
     private var pressedKeys = Set<UInt16>()
     private var recording = false
     private var holdIndex: Int?   // which binding started the current hold
 
-    private let modifierMask: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate]
+    private let modifierMask: NSEvent.ModifierFlags = [.command, .shift, .control, .option]
 
     init(bindings: [HotkeyBinding] = []) {
         self.bindings = bindings
     }
 
     func updateBindings(_ newBindings: [HotkeyBinding]) {
-        lock.lock()
         bindings = newBindings
-        // Reset transient state so a stale hold can't get stuck.
         fnDown = false
         pressedKeys.removeAll()
         holdIndex = nil
-        lock.unlock()
     }
 
     func start() {
-        guard thread == nil else { return } // guard against double-start
-        let t = Thread { [weak self] in self?.runTapLoop() }
-        t.name = "com.whisper.hotkey"
-        thread = t
-        t.start()
+        guard globalMonitors.isEmpty else { return } // guard against double-start
+        let mask: NSEvent.EventTypeMask = [.flagsChanged, .keyDown, .keyUp, .otherMouseDown, .otherMouseUp]
+
+        // Global monitor: events while other apps are focused (the normal case).
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            self?.handle(event)
+        }) {
+            globalMonitors.append(m)
+        } else {
+            NSLog("HotkeyMonitor: failed to install global monitor (Accessibility permission?)")
+        }
+
+        // Local monitor: events while Whisper itself is focused (Settings open etc.).
+        let local = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            self?.handle(event)
+            return event
+        }
+        if let local { localMonitors.append(local) }
     }
 
     func stop() {
-        if let tap = tap { CGEvent.tapEnable(tap: tap, enable: false) }
-        if let rl = tapRunLoop { CFRunLoopStop(rl) }
-        tap = nil
-        runLoopSource = nil
-        tapRunLoop = nil
-        thread = nil
+        globalMonitors.forEach { NSEvent.removeMonitor($0) }
+        localMonitors.forEach { NSEvent.removeMonitor($0) }
+        globalMonitors.removeAll()
+        localMonitors.removeAll()
         if recording { recording = false; fire(start: false) }
-    }
-
-    // MARK: - Tap setup
-
-    private func runTapLoop() {
-        let mask: CGEventMask =
-            (1 << CGEventType.flagsChanged.rawValue) |
-            (1 << CGEventType.keyDown.rawValue) |
-            (1 << CGEventType.keyUp.rawValue) |
-            (1 << CGEventType.otherMouseDown.rawValue) |
-            (1 << CGEventType.otherMouseUp.rawValue)
-
-        let refcon = Unmanaged.passUnretained(self).toOpaque()
-        let callback: CGEventTapCallBack = { _, type, event, refcon in
-            guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
-            let monitor = Unmanaged<HotkeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
-            monitor.handle(type: type, event: event)
-            return Unmanaged.passUnretained(event)
-        }
-
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
-                                          place: .headInsertEventTap,
-                                          options: .listenOnly,
-                                          eventsOfInterest: mask,
-                                          callback: callback,
-                                          userInfo: refcon) else {
-            // Almost always missing Accessibility permission. Bail without crashing.
-            NSLog("HotkeyMonitor: failed to create event tap (Accessibility permission?)")
-            return
-        }
-        self.tap = tap
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        self.runLoopSource = source
-
-        let rl = CFRunLoopGetCurrent()
-        self.tapRunLoop = rl
-        CFRunLoopAddSource(rl, source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        CFRunLoopRun()
     }
 
     // MARK: - Event handling
 
-    private func handle(type: CGEventType, event: CGEvent) {
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let tap = tap { CGEvent.tapEnable(tap: tap, enable: true) }
-            return
-        }
-
-        lock.lock()
-        let current = bindings
-        lock.unlock()
-
-        for (index, binding) in current.enumerated() {
-            guard let edge = edge(for: binding, type: type, event: event) else { continue }
+    private func handle(_ event: NSEvent) {
+        for (index, binding) in bindings.enumerated() {
+            guard let edge = edge(for: binding, event: event) else { continue }
             dispatch(index: index, style: binding.style, edge: edge)
         }
     }
 
     private enum Edge { case press, release }
 
-    private func edge(for binding: HotkeyBinding, type: CGEventType, event: CGEvent) -> Edge? {
+    private func edge(for binding: HotkeyBinding, event: NSEvent) -> Edge? {
         switch binding.kind {
         case .fnKey:
-            guard type == .flagsChanged else { return nil }
-            let on = event.flags.contains(.maskSecondaryFn)
+            guard event.type == .flagsChanged else { return nil }
+            let on = event.modifierFlags.contains(.function)
             if on && !fnDown { fnDown = true; return .press }
             if !on && fnDown { fnDown = false; return .release }
             return nil
@@ -130,41 +90,36 @@ final class HotkeyMonitor {
             // Modifier-only keys (e.g. Right Command) never fire keyDown/keyUp —
             // only flagsChanged — so they need their own edge detection.
             if let side = ModifierOnlyKeys.side(for: wantCode) {
-                guard type == .flagsChanged else { return nil }
-                let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-                guard code == wantCode else { return nil }
-                let on = event.flags.contains(side.cgFlag)
+                guard event.type == .flagsChanged, event.keyCode == wantCode else { return nil }
+                let on = event.modifierFlags.contains(side.nsFlag)
                 let wasOn = pressedKeys.contains(wantCode)
                 if on && !wasOn { pressedKeys.insert(wantCode); return .press }
                 if !on && wasOn { pressedKeys.remove(wantCode); return .release }
                 return nil
             }
 
-            let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-            if type == .keyDown {
-                guard code == wantCode, modifiersMatch(binding, event.flags) else { return nil }
-                if pressedKeys.contains(code) { return nil } // ignore auto-repeat
-                pressedKeys.insert(code)
+            if event.type == .keyDown {
+                guard event.keyCode == wantCode, modifiersMatch(binding, event.modifierFlags) else { return nil }
+                if event.isARepeat || pressedKeys.contains(wantCode) { return nil }
+                pressedKeys.insert(wantCode)
                 return .press
-            } else if type == .keyUp {
-                guard code == wantCode, pressedKeys.contains(code) else { return nil }
-                pressedKeys.remove(code)
+            } else if event.type == .keyUp {
+                guard event.keyCode == wantCode, pressedKeys.contains(wantCode) else { return nil }
+                pressedKeys.remove(wantCode)
                 return .release
             }
             return nil
 
         case .mouseButton:
-            guard let want = binding.mouseButton else { return nil }
-            let button = Int(event.getIntegerValueField(.mouseEventButtonNumber))
-            guard button == want else { return nil }
-            if type == .otherMouseDown { return .press }
-            if type == .otherMouseUp { return .release }
+            guard let want = binding.mouseButton, event.buttonNumber == want else { return nil }
+            if event.type == .otherMouseDown { return .press }
+            if event.type == .otherMouseUp { return .release }
             return nil
         }
     }
 
-    private func modifiersMatch(_ binding: HotkeyBinding, _ flags: CGEventFlags) -> Bool {
-        let want = CGEventFlags(rawValue: binding.modifiers ?? 0).intersection(modifierMask)
+    private func modifiersMatch(_ binding: HotkeyBinding, _ flags: NSEvent.ModifierFlags) -> Bool {
+        let want = NSEvent.ModifierFlags(rawValue: UInt(binding.modifiers ?? 0)).intersection(modifierMask)
         let have = flags.intersection(modifierMask)
         return want == have
     }

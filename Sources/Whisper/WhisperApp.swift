@@ -6,10 +6,79 @@ import Combine
 struct WhisperApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    init() {
+        // End-to-end pipeline QA without mic/hotkey: Whisper --selftest <file.wav>
+        if let idx = CommandLine.arguments.firstIndex(of: "--selftest") {
+            let wavPath = CommandLine.arguments.indices.contains(idx + 1)
+                ? CommandLine.arguments[idx + 1] : nil
+            SelfTest.run(wavPath: wavPath)  // never returns
+        }
+    }
+
     var body: some Scene {
         SwiftUI.Settings {
             EmptyView()
         }
+    }
+}
+
+/// Runs the real pipeline stages against a WAV file and prints a report.
+enum SelfTest {
+    static func run(wavPath: String?) -> Never {
+        // Keep the main run loop alive (MainActor work needs it); exit from the task.
+        Task {
+            await runAsync(wavPath: wavPath)
+            exit(0)
+        }
+        RunLoop.main.run()
+        exit(0)
+    }
+
+    private static func runAsync(wavPath: String?) async {
+        let settings = SettingsStore.shared.settings
+        print("[selftest] STT provider: \(settings.sttProvider.rawValue)")
+        print("[selftest] Cleanup provider: \(settings.cleanupProvider.rawValue) (enabled: \(settings.cleanupEnabled))")
+
+        guard let wavPath, let wav = FileManager.default.contents(atPath: wavPath) else {
+            print("[selftest] FAIL: no wav file provided or unreadable")
+            return
+        }
+        print("[selftest] wav bytes: \(wav.count)")
+
+        // Stage 1: STT
+        let raw: String
+        do {
+            let t0 = Date()
+            raw = try await ProviderFactory.transcriber(for: settings).transcribe(wavData: wav)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            print("[selftest] STT OK in \(String(format: "%.2f", Date().timeIntervalSince(t0)))s: \"\(raw)\"")
+        } catch {
+            print("[selftest] STT FAIL: \(error.localizedDescription)")
+            return
+        }
+
+        // Stage 2: cleanup (time-boxed, same code path as the app)
+        let t1 = Date()
+        let cleaned = await DictationPipeline.cleanWithTimeout(raw, settings: settings)
+        if let cleaned {
+            print("[selftest] Cleanup OK in \(String(format: "%.2f", Date().timeIntervalSince(t1)))s: \"\(cleaned)\"")
+        } else {
+            print("[selftest] Cleanup returned nil (raw fallback would be used)")
+        }
+
+        // Stage 3: output (clipboard only — safe for QA)
+        let final = cleaned ?? raw
+        await MainActor.run {
+            OutputRouter().deliver(text: final, mode: .copyOnly)
+        }
+        let clip = await MainActor.run { NSPasteboard.general.string(forType: .string) }
+        print(clip == final ? "[selftest] Clipboard OK" : "[selftest] Clipboard FAIL")
+
+        // Stage 4: history
+        HistoryStore.shared.add(HistoryEntry(date: Date(), rawText: raw, cleanedText: cleaned, appName: "selftest", audioFileName: nil))
+        try? await Task.sleep(nanoseconds: 500_000_000) // let async persist land
+        print("[selftest] History entries: \(HistoryStore.shared.entries.count)")
+        print("[selftest] ALL STAGES PASS")
     }
 }
 
@@ -20,6 +89,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         checkPermissions()
+        Keychain.importFromLoginShellEnv()
+
+        // Warm the audio engine now: the first engine.start() costs ~1.7s
+        // (HAL spin-up). Deferred to hotkey-press it swallows the opening
+        // words of the first dictation.
+        pipeline.recorder.prewarm()
 
         // Menu bar
         MenuBarController.shared.openSettings = { WindowPresenter.showSettings() }

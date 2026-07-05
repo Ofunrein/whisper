@@ -13,6 +13,7 @@ enum PillState: Equatable {
 final class PillLevelModel: ObservableObject {
     @Published var level: Float = 0
     @Published var state: PillState = .collapsed
+    @Published var errorFlash: Bool = false
 }
 
 /// Owns a borderless, non-activating floating panel that shows dictation status,
@@ -158,6 +159,14 @@ final class PillController: NSObject {
         model.level = max(0, min(1, f))
     }
 
+    /// Brief red flash so failures are visible, not just logged.
+    func flashError() {
+        model.errorFlash = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            self?.model.errorFlash = false
+        }
+    }
+
     // MARK: - Positioning
 
     private func positionAtDefaultOrRestoredLocation() {
@@ -255,7 +264,7 @@ private struct PillContentView: View {
     var body: some View {
         ZStack {
             Capsule()
-                .fill(Color.black.opacity(isFilled ? 0.88 : 0.35))
+                .fill(model.errorFlash ? Color.red.opacity(0.75) : Color.black.opacity(isFilled ? 0.88 : 0.35))
             Capsule()
                 .strokeBorder(Color.white.opacity(isFilled ? 0.12 : 0.4), lineWidth: 1.25)
             switch model.state {
