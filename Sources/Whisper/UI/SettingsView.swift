@@ -262,6 +262,10 @@ private struct HotkeyTab: View {
                         addBinding(HotkeyBinding(kind: .fnKey, keyCode: nil, modifiers: nil, mouseButton: nil, style: recordingStyle))
                     }
 
+                    Button("Use Right Command") {
+                        addBinding(HotkeyBinding(kind: .keyCombo, keyCode: 54, modifiers: 0, mouseButton: nil, style: recordingStyle))
+                    }
+
                     HStack {
                         Text("Mouse button")
                         Picker("", selection: $mouseButtonSelection) {
@@ -284,7 +288,24 @@ private struct HotkeyTab: View {
 
     private func startRecording() {
         isRecording = true
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
+            if event.type == .flagsChanged {
+                // Modifier-only keys (Right Command, Right Option, etc.) never
+                // send keyDown — only flagsChanged — so capture them here.
+                guard let side = ModifierOnlyKeys.side(for: event.keyCode) else { return event }
+                guard event.modifierFlags.contains(side.nsFlag) else { return event } // fire on press, not release
+                let binding = HotkeyBinding(
+                    kind: .keyCombo,
+                    keyCode: event.keyCode,
+                    modifiers: 0,
+                    mouseButton: nil,
+                    style: recordingStyle
+                )
+                addBinding(binding)
+                stopRecording()
+                return nil
+            }
+
             let binding = HotkeyBinding(
                 kind: .keyCombo,
                 keyCode: event.keyCode,
@@ -319,6 +340,9 @@ private struct HotkeyTab: View {
         case .fnKey:
             return "Fn key (\(binding.style.rawValue))"
         case .keyCombo:
+            if let code = binding.keyCode, let modName = ModifierOnlyKeys.displayName(for: code) {
+                return "\(modName) (\(binding.style.rawValue))"
+            }
             var parts: [String] = []
             let flags = NSEvent.ModifierFlags(rawValue: UInt(binding.modifiers ?? 0))
             if flags.contains(.control) { parts.append("⌃") }

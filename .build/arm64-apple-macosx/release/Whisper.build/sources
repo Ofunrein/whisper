@@ -1,5 +1,6 @@
 /Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/AudioRecorder.swift
 /Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift
+/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift
 /Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift
 /Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Permissions/Permissions.swift
 /Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Pipeline/DictationPipeline.swift

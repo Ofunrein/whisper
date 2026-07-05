@@ -16,6 +16,13 @@
     "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.swiftdeps",
     "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/HotkeyMonitor.dia"
   },
+  "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ModifierKeys.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ModifierKeys.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ModifierKeys~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ModifierKeys.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/ModifierKeys.dia"
+  },
   "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift": {
     "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter.d",
     "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Whisper.build/OutputRouter.swift.o",

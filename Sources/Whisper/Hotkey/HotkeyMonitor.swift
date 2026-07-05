@@ -126,6 +126,20 @@ final class HotkeyMonitor {
 
         case .keyCombo:
             guard let wantCode = binding.keyCode else { return nil }
+
+            // Modifier-only keys (e.g. Right Command) never fire keyDown/keyUp —
+            // only flagsChanged — so they need their own edge detection.
+            if let side = ModifierOnlyKeys.side(for: wantCode) {
+                guard type == .flagsChanged else { return nil }
+                let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+                guard code == wantCode else { return nil }
+                let on = event.flags.contains(side.cgFlag)
+                let wasOn = pressedKeys.contains(wantCode)
+                if on && !wasOn { pressedKeys.insert(wantCode); return .press }
+                if !on && wasOn { pressedKeys.remove(wantCode); return .release }
+                return nil
+            }
+
             let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             if type == .keyDown {
                 guard code == wantCode, modifiersMatch(binding, event.flags) else { return nil }

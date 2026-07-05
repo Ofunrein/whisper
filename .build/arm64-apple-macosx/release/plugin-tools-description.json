@@ -36,6 +36,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift"
         },
         {
@@ -137,6 +141,7 @@
       "objects" : [
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/AudioRecorder.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/HotkeyMonitor.swift.o",
+        "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/ModifierKeys.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/OutputRouter.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/Permissions.swift.o",
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/DictationPipeline.swift.o",
@@ -215,6 +220,10 @@
         {
           "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/HotkeyMonitor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/ModifierKeys.swift.o"
         },
         {
           "kind" : "file",
@@ -313,6 +322,7 @@
       "sources" : [
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/AudioRecorder.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift",
+        "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Permissions/Permissions.swift",
         "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Pipeline/DictationPipeline.swift",
@@ -550,6 +560,7 @@
       "-c",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Audio/AudioRecorder.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/HotkeyMonitor.swift",
+      "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Permissions/Permissions.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Pipeline/DictationPipeline.swift",
@@ -791,6 +802,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Hotkey/ModifierKeys.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Sources/Whisper/Output/OutputRouter.swift"
         },
         {
@@ -937,6 +952,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/ModifierKeys.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/MultipartFormBuilder.swift.o"
         },
         {
@@ -1054,6 +1073,10 @@
         {
           "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/MenuBar.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/release/Whisper.build/ModifierKeys.swift.o"
         },
         {
           "kind" : "file",
