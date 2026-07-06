@@ -90,11 +90,11 @@ final class OutputRouter {
             return
         }
 
-        if insertFocusedTextViaAccessibility(text) {
-            NSLog("Whisper: auto-paste inserted via AX selected text")
-            return
-        }
-
+        // Do not use AX selected-text insertion as a primary paste path. Some apps
+        // report success for kAXSelectedTextAttribute without inserting into the
+        // actual text field, which leaves the user with only clipboard text and no
+        // auto-paste. Match manual paste exactly: activate target, then send
+        // Command-V through the HID event tap.
         postCommandVToHID()
         NSLog("Whisper: auto-paste sent Command-V to frontmost app")
     }
@@ -105,17 +105,6 @@ final class OutputRouter {
               let target = NSRunningApplication(processIdentifier: targetPID),
               target.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
         target.activate(options: [.activateIgnoringOtherApps])
-    }
-
-    private func insertFocusedTextViaAccessibility(_ text: String) -> Bool {
-        let system = AXUIElementCreateSystemWide()
-        var focused: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-              let focused else { return false }
-
-        let element = focused as! AXUIElement
-        let selectedStatus = AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, text as CFString)
-        return selectedStatus == .success
     }
 
     private func postCommandVToHID() {
