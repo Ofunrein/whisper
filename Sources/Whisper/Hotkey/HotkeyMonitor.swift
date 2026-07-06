@@ -24,6 +24,8 @@ final class HotkeyMonitor {
 
     private var rightClickHoldTimer: DispatchWorkItem?
     private var rightClickHeld = false // true once the hold threshold has fired for the current down-sequence
+    private var suppressRightClickUntilUp = false // double-click/rapid-click guard
+    private var lastRightClickUpTime: TimeInterval?
 
     private let modifierMask: NSEvent.ModifierFlags = [.command, .shift, .control, .option]
 
@@ -39,6 +41,8 @@ final class HotkeyMonitor {
         rightClickHoldTimer?.cancel()
         rightClickHoldTimer = nil
         rightClickHeld = false
+        suppressRightClickUntilUp = false
+        lastRightClickUpTime = nil
     }
 
     func start() {
@@ -82,36 +86,52 @@ final class HotkeyMonitor {
         }
     }
 
-    /// Right-click needs its own path: a quick click must still let the
-    /// native context menu open, so recording only starts once the button
-    /// has been held past the configured threshold. macOS cannot suppress
-    /// the context menu from a global monitor, so it may flash briefly
-    /// before the hold is recognized — a platform limitation, not a bug here.
-    private func handleRightClick(index: Int, binding: HotkeyBinding, event: NSEvent) {
-        switch event.type {
-        case .rightMouseDown:
-            rightClickHeld = false
-            rightClickHoldTimer?.cancel()
-            let thresholdMs = SettingsStore.shared.settings.rightClickHoldThresholdMs
-            let work = DispatchWorkItem { [weak self] in
-                guard let self else { return }
-                self.rightClickHeld = true
-                self.dispatch(index: index, style: binding.style, edge: .press)
-            }
-            rightClickHoldTimer = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + thresholdMs / 1000, execute: work)
-        case .rightMouseUp:
-            rightClickHoldTimer?.cancel()
-            rightClickHoldTimer = nil
-            guard rightClickHeld else { return } // released before threshold: let the context menu behave normally
-            rightClickHeld = false
-            dispatch(index: index, style: binding.style, edge: .release)
-        default:
-            break
-        }
-    }
+    /// Right-click has one job: hold to record.
+ /// Quick clicks and double-clicks must pass through untouched.
+ /// Even if old settings stored right-click as toggle, force hold here.
+ private func handleRightClick(index: Int, binding: HotkeyBinding, event: NSEvent) {
+ switch event.type {
+ case .rightMouseDown:
+ rightClickHoldTimer?.cancel()
+ rightClickHoldTimer = nil
+ rightClickHeld = false
 
-    private enum Edge { case press, release }
+ let now = event.timestamp
+ let isRapidSecondClick = lastRightClickUpTime.map { now - $0 <= NSEvent.doubleClickInterval } ?? false
+ guard event.clickCount == 1, !isRapidSecondClick else {
+ suppressRightClickUntilUp = true
+ return
+ }
+
+ suppressRightClickUntilUp = false
+ let thresholdMs = SettingsStore.shared.settings.rightClickHoldThresholdMs
+ let work = DispatchWorkItem { [weak self] in
+ guard let self, !self.suppressRightClickUntilUp else { return }
+ self.rightClickHeld = true
+ self.dispatch(index: index, style: .hold, edge: .press)
+ }
+ rightClickHoldTimer = work
+ DispatchQueue.main.asyncAfter(deadline: .now() + thresholdMs / 1000, execute: work)
+ case .rightMouseUp:
+ lastRightClickUpTime = event.timestamp
+ rightClickHoldTimer?.cancel()
+ rightClickHoldTimer = nil
+
+ if suppressRightClickUntilUp {
+ suppressRightClickUntilUp = false
+ rightClickHeld = false
+ return
+ }
+
+ guard rightClickHeld else { return }
+ rightClickHeld = false
+ dispatch(index: index, style: .hold, edge: .release)
+ default:
+ break
+ }
+ }
+
+ private enum Edge { case press, release }
 
     private func edge(for binding: HotkeyBinding, event: NSEvent) -> Edge? {
         switch binding.kind {

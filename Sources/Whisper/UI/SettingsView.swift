@@ -507,7 +507,7 @@ private struct HotkeyTab: View {
                             .monospacedDigit()
                     }
                     Button("Use Right-Click (hold)") {
-                        addBinding(HotkeyBinding(kind: .rightClick, keyCode: nil, modifiers: nil, mouseButton: nil, style: recordingStyle))
+                        addBinding(HotkeyBinding(kind: .rightClick, keyCode: nil, modifiers: nil, mouseButton: nil, style: .hold))
                     }
                     Text("A quick right-click still opens the context menu; holding past the threshold starts recording instead. macOS may briefly flash the context menu before the hold is recognized — this is a platform limitation of global event monitors.")
                         .font(.caption)
