@@ -22,6 +22,9 @@ final class HotkeyMonitor {
     private var recording = false
     private var holdIndex: Int?   // which binding started the current hold
 
+    private var rightClickHoldTimer: DispatchWorkItem?
+    private var rightClickHeld = false // true once the hold threshold has fired for the current down-sequence
+
     private let modifierMask: NSEvent.ModifierFlags = [.command, .shift, .control, .option]
 
     init(bindings: [HotkeyBinding] = []) {
@@ -33,11 +36,14 @@ final class HotkeyMonitor {
         fnDown = false
         pressedKeys.removeAll()
         holdIndex = nil
+        rightClickHoldTimer?.cancel()
+        rightClickHoldTimer = nil
+        rightClickHeld = false
     }
 
     func start() {
         guard globalMonitors.isEmpty else { return } // guard against double-start
-        let mask: NSEvent.EventTypeMask = [.flagsChanged, .keyDown, .keyUp, .otherMouseDown, .otherMouseUp]
+        let mask: NSEvent.EventTypeMask = [.flagsChanged, .keyDown, .keyUp, .otherMouseDown, .otherMouseUp, .rightMouseDown, .rightMouseUp]
 
         // Global monitor: events while other apps are focused (the normal case).
         if let m = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
@@ -67,9 +73,41 @@ final class HotkeyMonitor {
     // MARK: - Event handling
 
     private func handle(_ event: NSEvent) {
-        for (index, binding) in bindings.enumerated() {
+        for (index, binding) in bindings.enumerated() where binding.kind == .rightClick {
+            handleRightClick(index: index, binding: binding, event: event)
+        }
+        for (index, binding) in bindings.enumerated() where binding.kind != .rightClick {
             guard let edge = edge(for: binding, event: event) else { continue }
             dispatch(index: index, style: binding.style, edge: edge)
+        }
+    }
+
+    /// Right-click needs its own path: a quick click must still let the
+    /// native context menu open, so recording only starts once the button
+    /// has been held past the configured threshold. macOS cannot suppress
+    /// the context menu from a global monitor, so it may flash briefly
+    /// before the hold is recognized — a platform limitation, not a bug here.
+    private func handleRightClick(index: Int, binding: HotkeyBinding, event: NSEvent) {
+        switch event.type {
+        case .rightMouseDown:
+            rightClickHeld = false
+            rightClickHoldTimer?.cancel()
+            let thresholdMs = SettingsStore.shared.settings.rightClickHoldThresholdMs
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.rightClickHeld = true
+                self.dispatch(index: index, style: binding.style, edge: .press)
+            }
+            rightClickHoldTimer = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + thresholdMs / 1000, execute: work)
+        case .rightMouseUp:
+            rightClickHoldTimer?.cancel()
+            rightClickHoldTimer = nil
+            guard rightClickHeld else { return } // released before threshold: let the context menu behave normally
+            rightClickHeld = false
+            dispatch(index: index, style: binding.style, edge: .release)
+        default:
+            break
         }
     }
 
@@ -90,10 +128,13 @@ final class HotkeyMonitor {
             // Modifier-only keys (e.g. Right Command) never fire keyDown/keyUp —
             // only flagsChanged — so they need their own edge detection.
             if let side = ModifierOnlyKeys.side(for: wantCode) {
-                guard event.type == .flagsChanged, event.keyCode == wantCode else { return nil }
+                guard event.type == .flagsChanged else { return nil }
                 let on = event.modifierFlags.contains(side.nsFlag)
                 let wasOn = pressedKeys.contains(wantCode)
-                if on && !wasOn { pressedKeys.insert(wantCode); return .press }
+                // Press requires the exact key; release trusts the flag bit —
+                // if it cleared, the key is up no matter which event told us
+                // (a missed release event must not leave recording stuck on).
+                if event.keyCode == wantCode, on && !wasOn { pressedKeys.insert(wantCode); return .press }
                 if !on && wasOn { pressedKeys.remove(wantCode); return .release }
                 return nil
             }
@@ -115,6 +156,9 @@ final class HotkeyMonitor {
             if event.type == .otherMouseDown { return .press }
             if event.type == .otherMouseUp { return .release }
             return nil
+
+        case .rightClick:
+            return nil // handled separately in handleRightClick, never reaches here
         }
     }
 

@@ -14,6 +14,7 @@ final class PillLevelModel: ObservableObject {
     @Published var level: Float = 0
     @Published var state: PillState = .collapsed
     @Published var errorFlash: Bool = false
+    @Published var isHovering: Bool = false
 }
 
 /// Owns a borderless, non-activating floating panel that shows dictation status,
@@ -26,8 +27,15 @@ final class PillController: NSObject {
     private var didMoveObserver: NSObjectProtocol?
     private var screenParamsObserver: NSObjectProtocol?
 
-    private let collapsedSize = NSSize(width: 56, height: 14)
-    private let expandedSize = NSSize(width: 128, height: 28)
+    private var baseCollapsedSize = NSSize(width: 56, height: 14)
+    private var baseExpandedSize = NSSize(width: 128, height: 28)
+    private var collapsedSize: NSSize { scaled(baseCollapsedSize) }
+    private var expandedSize: NSSize { scaled(baseExpandedSize) }
+
+    private func scaled(_ size: NSSize) -> NSSize {
+        let scale = SettingsStore.shared.settings.pillScale
+        return NSSize(width: size.width * scale, height: size.height * scale)
+    }
 
     override init() {
         super.init()
@@ -44,11 +52,24 @@ final class PillController: NSObject {
             defer: false
         )
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        // Exclude from every system window-management surface (Sequoia's
+        // edge-drag tiling overlay, Mission Control window cycling, tab
+        // bars, window restoration) — this is an overlay indicator, not a
+        // document window, and must never look like one to the WM.
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        panel.tabbingMode = .disallowed
+        panel.isRestorable = false
         panel.isMovableByWindowBackground = true
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = true
+        // The SwiftUI content draws its own capsule-shaped shadow (see
+        // PillContentView). The native window shadow is a separate,
+        // independently-cached layer that AppKit doesn't reliably
+        // re-mask on every animated resize/redraw (waveform, expand/
+        // collapse) — it lags behind as a stale rectangular "ghost"
+        // outline around the capsule. Disabling it leaves only the
+        // shadow that always matches the current shape.
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = false
 
@@ -61,6 +82,7 @@ final class PillController: NSObject {
     }
 
     private var programmaticMove = false
+    private var snapWorkItem: DispatchWorkItem?
 
     private func observeNotifications() {
         didMoveObserver = NotificationCenter.default.addObserver(
@@ -82,13 +104,13 @@ final class PillController: NSObject {
                 self.programmaticMove = false
             }
 
-            // A user drag switches to a custom placement.
-            var settings = SettingsStore.shared.settings
-            if settings.pillPlacement != .custom {
-                settings.pillPlacement = .custom
-                SettingsStore.shared.settings = settings
-            }
-            self.persistPosition()
+            // Debounce until the drag settles, then snap to the nearest
+            // preset spot (or stay custom). Runs once per drag since each
+            // move cancels the pending snap.
+            self.snapWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.snapToNearestPlacement() }
+            self.snapWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
         }
 
         screenParamsObserver = NotificationCenter.default.addObserver(
@@ -125,27 +147,39 @@ final class PillController: NSObject {
         resizeKeepingAnchor(to: newSize, animated: true)
     }
 
-    /// Apply a preset placement (or restore the custom drag position).
-    func applyPlacement(_ placement: PillPlacement) {
-        guard let screen = NSScreen.main else { return }
-        let visible = screen.visibleFrame
-        let size = panel.frame.size
+    /// Origin for a preset placement on the screen containing the pill.
+    private func presetOrigin(for placement: PillPlacement, size: NSSize) -> NSPoint? {
+        let visible = screenContaining(panel.frame).visibleFrame
         let margin: CGFloat = 24
-        var origin: NSPoint
-
         switch placement {
-        case .bottomCenter: origin = NSPoint(x: visible.midX - size.width / 2, y: visible.minY + margin)
-        case .bottomLeft:   origin = NSPoint(x: visible.minX + margin, y: visible.minY + margin)
-        case .bottomRight:  origin = NSPoint(x: visible.maxX - size.width - margin, y: visible.minY + margin)
-        case .topCenter:    origin = NSPoint(x: visible.midX - size.width / 2, y: visible.maxY - size.height - margin)
-        case .topLeft:      origin = NSPoint(x: visible.minX + margin, y: visible.maxY - size.height - margin)
-        case .topRight:     origin = NSPoint(x: visible.maxX - size.width - margin, y: visible.maxY - size.height - margin)
+        case .bottomCenter: return NSPoint(x: visible.midX - size.width / 2, y: visible.minY + margin)
+        case .bottomLeft:   return NSPoint(x: visible.minX + margin, y: visible.minY + margin)
+        case .bottomRight:  return NSPoint(x: visible.maxX - size.width - margin, y: visible.minY + margin)
+        case .topCenter:    return NSPoint(x: visible.midX - size.width / 2, y: visible.maxY - size.height - margin)
+        case .topLeft:      return NSPoint(x: visible.minX + margin, y: visible.maxY - size.height - margin)
+        case .topRight:     return NSPoint(x: visible.maxX - size.width - margin, y: visible.maxY - size.height - margin)
+        case .middleLeft:   return NSPoint(x: visible.minX + margin, y: visible.midY - size.height / 2)
+        case .middleRight:  return NSPoint(x: visible.maxX - size.width - margin, y: visible.midY - size.height / 2)
         case .custom:
             let s = SettingsStore.shared.settings
-            guard let x = s.pillPositionX, let y = s.pillPositionY else { return }
-            origin = NSPoint(x: x, y: y)
+            guard let x = s.pillPositionX, let y = s.pillPositionY else { return nil }
+            return NSPoint(x: x, y: y)
         }
+    }
 
+    /// Apply a preset placement (or restore the custom drag position).
+    /// Animated by default (Settings picker, live snap); pass animated:false
+    /// for the initial launch placement so the move applies synchronously —
+    /// an animated move here would still be mid-flight when the immediately
+    /// following avoidDockAndBounds() reads panel.frame, and its stale
+    /// pre-animation origin would win the race and clamp the pill back to
+    /// a screen corner instead of the restored position.
+    func applyPlacement(_ placement: PillPlacement, animated: Bool = true) {
+        guard let origin = presetOrigin(for: placement, size: panel.frame.size) else { return }
+        guard animated else {
+            panel.setFrameOrigin(origin)
+            return
+        }
         programmaticMove = true
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.2
@@ -155,8 +189,64 @@ final class PillController: NSObject {
         })
     }
 
+    /// SuperWhisper-style snap: after a drag settles, magnet to the nearest
+    /// edge or corner zone. Drops in the center stay custom.
+    private func snapToNearestPlacement() {
+        let frame = panel.frame
+        let visible = screenContaining(frame).visibleFrame
+        let placement = magneticPlacement(for: frame, in: visible)
+        var settings = SettingsStore.shared.settings
+
+        if let placement {
+            settings.pillPlacement = placement
+            SettingsStore.shared.settings = settings
+            applyPlacement(placement)
+        } else {
+            settings.pillPlacement = .custom
+            SettingsStore.shared.settings = settings
+            persistPosition()
+        }
+    }
+
+    private func magneticPlacement(for frame: NSRect, in visible: NSRect) -> PillPlacement? {
+        let band = max(CGFloat(110), min(visible.width, visible.height) * 0.10)
+        let centerBand = max(CGFloat(140), visible.width * 0.12)
+
+        let nearLeft = frame.minX - visible.minX <= band
+        let nearRight = visible.maxX - frame.maxX <= band
+        let nearBottom = frame.minY - visible.minY <= band
+        let nearTop = visible.maxY - frame.maxY <= band
+        let nearCenterX = abs(frame.midX - visible.midX) <= centerBand
+
+        if nearTop {
+            if nearLeft { return .topLeft }
+            if nearRight { return .topRight }
+            if nearCenterX { return .topCenter }
+        }
+
+        if nearBottom {
+            if nearLeft { return .bottomLeft }
+            if nearRight { return .bottomRight }
+            if nearCenterX { return .bottomCenter }
+        }
+
+        if nearLeft { return .middleLeft }
+        if nearRight { return .middleRight }
+
+        return nil
+    }
+
     func setLevel(_ f: Float) {
         model.level = max(0, min(1, f))
+    }
+
+    /// Re-applies the current scale to whichever size matches the pill's
+    /// current state (idle/collapsed vs expanded), so a live scale change in
+    /// Settings takes effect immediately instead of waiting for the next
+    /// state transition.
+    func applyScale() {
+        let size = (model.state == .collapsed) ? collapsedSize : expandedSize
+        resizeKeepingAnchor(to: size, animated: true)
     }
 
     /// Brief red flash so failures are visible, not just logged.
@@ -170,7 +260,7 @@ final class PillController: NSObject {
     // MARK: - Positioning
 
     private func positionAtDefaultOrRestoredLocation() {
-        applyPlacement(SettingsStore.shared.settings.pillPlacement)
+        applyPlacement(SettingsStore.shared.settings.pillPlacement, animated: false)
         avoidDockAndBounds(animated: false)
     }
 
@@ -266,7 +356,7 @@ private struct PillContentView: View {
             Capsule()
                 .fill(model.errorFlash ? Color.red.opacity(0.75) : Color.black.opacity(isFilled ? 0.88 : 0.35))
             Capsule()
-                .strokeBorder(Color.white.opacity(isFilled ? 0.12 : 0.4), lineWidth: 1.25)
+                .strokeBorder(Color.white.opacity(model.isHovering ? 0.7 : (isFilled ? 0.12 : 0.4)), lineWidth: model.isHovering ? 1.75 : 1.25)
             switch model.state {
             case .collapsed:
                 EmptyView()
@@ -281,6 +371,47 @@ private struct PillContentView: View {
         }
         .compositingGroup()
         .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 2)
+        .scaleEffect(model.isHovering ? 1.06 : 1.0)
+        .animation(.easeOut(duration: 0.15), value: model.isHovering)
+        .background(HoverTrackingView(isHovering: $model.isHovering))
+    }
+}
+
+/// SwiftUI's `.onHover` is unreliable inside a borderless, non-activating
+/// `NSPanel` — hover events don't consistently propagate the way they do in
+/// a normal window. A real `NSTrackingArea` on the backing NSView is the
+/// documented, reliable mechanism for hover detection regardless of window
+/// style, so this wraps one via NSViewRepresentable.
+private struct HoverTrackingView: NSViewRepresentable {
+    @Binding var isHovering: Bool
+
+    func makeNSView(context: Context) -> TrackingNSView {
+        let view = TrackingNSView()
+        view.onHoverChange = { isHovering = $0 }
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackingNSView, context: Context) {}
+
+    final class TrackingNSView: NSView {
+        var onHoverChange: ((Bool) -> Void)?
+        private var trackingArea: NSTrackingArea?
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let trackingArea { removeTrackingArea(trackingArea) }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            trackingArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) { onHoverChange?(true) }
+        override func mouseExited(with event: NSEvent) { onHoverChange?(false) }
     }
 }
 

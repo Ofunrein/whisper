@@ -8,7 +8,14 @@ final class OutputRouter {
     private let restoreDelay: TimeInterval = 0.3
     private let vKeyCode: CGKeyCode = 9 // "v"
 
-    func deliver(text: String, mode: OutputMode) {
+    /// Clipboard snapshots from before each paste, most recent last. A
+    /// dedicated Cmd+Shift+Z hotkey (ClipboardRestoreMonitor) pops these back
+    /// onto the pasteboard — a safety net if a dictation paste overwrote
+    /// something the user still needed, without touching the system Cmd+Z.
+    private static var history: [[(NSPasteboard.PasteboardType, Data)]] = []
+    private static let maxHistory = 5
+
+    func deliver(text: String, mode: OutputMode, keepOnClipboard: Bool) {
         switch mode {
         case .copyOnly:
             setClipboard(text)
@@ -17,12 +24,29 @@ final class OutputRouter {
             pasteViaCommandV()
         case .pasteAtCursor:
             let saved = snapshotClipboard()
+            Self.history.append(saved)
+            if Self.history.count > Self.maxHistory { Self.history.removeFirst() }
             setClipboard(text)
             pasteViaCommandV()
+            guard !keepOnClipboard else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) { [weak self] in
                 self?.restoreClipboard(saved)
             }
         }
+    }
+
+    /// Pops the most recent pre-paste clipboard snapshot back onto the
+    /// pasteboard. Returns false if there's nothing to restore.
+    static func restorePreviousClipboard() -> Bool {
+        guard let last = history.popLast() else { return false }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        guard !last.isEmpty else { return true }
+        pb.declareTypes(last.map { $0.0 }, owner: nil)
+        for (type, data) in last {
+            pb.setData(data, forType: type)
+        }
+        return true
     }
 
     func frontmostAppName() -> String? {

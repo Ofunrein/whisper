@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import CoreAudio
 import Combine
 
 /// Captures microphone audio via AVAudioEngine and returns 16kHz mono 16-bit
@@ -7,8 +8,9 @@ import Combine
 final class AudioRecorder: ObservableObject {
     @Published var level: Float = 0
 
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private var converter: AVAudioConverter?
+    private var converterInputFormat: AVAudioFormat?
     private let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,
                                              sampleRate: 16_000,
                                              channels: 1,
@@ -35,11 +37,26 @@ final class AudioRecorder: ObservableObject {
     }
 
     private var configObserver: NSObjectProtocol?
+    private var rebuildWorkItem: DispatchWorkItem?
+    private var repinWorkItem: DispatchWorkItem?
+    private var defaultInputListener: AudioObjectPropertyListenerBlock?
 
     init() {
-        // Input device changes (AirPods connect, USB mic unplug) stop the
-        // engine and invalidate the tap format. Rebuild so the next
-        // recording works instead of silently capturing nothing.
+        observeEngine()
+        observeDefaultInputDevice()
+    }
+
+    deinit {
+        if let listener = defaultInputListener {
+            AudioDevices.removeDefaultInputDeviceListener(listener)
+        }
+    }
+
+    /// Input device changes (AirPods connect, USB mic unplug) stop the
+    /// engine and invalidate the tap format. Rebuild (debounced — several
+    /// fire back-to-back mid-transition) so the next recording works.
+    private func observeEngine() {
+        if let o = configObserver { NotificationCenter.default.removeObserver(o) }
         configObserver = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange,
             object: engine,
@@ -47,11 +64,48 @@ final class AudioRecorder: ObservableObject {
         ) { [weak self] _ in
             guard let self else { return }
             NSLog("AudioRecorder: engine configuration changed, rebuilding")
-            self.engine.inputNode.removeTap(onBus: 0)
-            self.tapInstalled = false
-            self.engineRunning = false
-            _ = self.ensureEngineRunning()
+            self.rebuildWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.reconfigure() }
+            self.rebuildWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
         }
+    }
+
+    /// Listen directly to CoreAudio's `kAudioHardwarePropertyDefaultInputDevice`
+    /// instead of only reacting to `AVAudioEngineConfigurationChange`.
+    ///
+    /// The engine notification is a side effect of the audio *graph* being
+    /// invalidated — it's not a documented guarantee that it fires every time
+    /// the system default input changes (e.g. a Bluetooth device can claim
+    /// the default while the engine's already-running route is otherwise
+    /// left alone). Listening to the HAL property directly gives us the
+    /// actual, guaranteed signal for "the default input changed", so a
+    /// pinned mic (e.g. Yeti X) gets re-asserted even in cases the engine
+    /// notification misses.
+    ///
+    /// This fires in addition to (and independently of) the engine-config
+    /// listener; both funnel into the same debounced re-pin so a device
+    /// swap that trips both doesn't double-fire.
+    private func observeDefaultInputDevice() {
+        defaultInputListener = AudioDevices.addDefaultInputDeviceListener { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                NSLog("AudioRecorder: system default input device changed")
+                self.scheduleRepin()
+            }
+        }
+    }
+
+    /// Debounced re-pin, separate from the full engine `reconfigure()` path.
+    /// Bluetooth accessories can take a while to settle their default-device
+    /// negotiation after connecting, so a short delay plus a verify/retry in
+    /// `applyPreferredDevice()` gives CoreAudio room to finish before we
+    /// re-assert our preferred device.
+    private func scheduleRepin() {
+        repinWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.applyPreferredDevice() }
+        repinWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
     }
 
     func start() {
@@ -91,6 +145,7 @@ final class AudioRecorder: ObservableObject {
     private func ensureEngineRunning() -> Bool {
         if engineRunning { return true }
         let input = engine.inputNode
+        applyPreferredDevice()
         let hwFormat = input.outputFormat(forBus: 0)
         guard hwFormat.sampleRate > 0 else {
             NSLog("AudioRecorder: input format sampleRate=0 (no mic access or no input device)")
@@ -98,10 +153,11 @@ final class AudioRecorder: ObservableObject {
         }
         NSLog("AudioRecorder: engine starting, hw=%.0fHz %dch", hwFormat.sampleRate, hwFormat.channelCount)
 
-        converter = AVAudioConverter(from: hwFormat, to: targetFormat)
-
         if !tapInstalled {
-            input.installTap(onBus: 0, bufferSize: 4096, format: hwFormat) { [weak self] buffer, _ in
+            // nil format = follow the hardware. Passing an explicit format
+            // crashes with an NSException if the device changes between the
+            // format read and tap install (observed when pinning the mic).
+            input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
                 // Audio threads never drain autorelease pools on their own;
                 // without this, per-callback ObjC allocations accumulate forever.
                 autoreleasepool { self?.process(buffer) }
@@ -120,6 +176,59 @@ final class AudioRecorder: ObservableObject {
         }
     }
 
+    /// Pin the configured mic (e.g. Yeti X) by setting it as the system
+    /// default input device. AVAudioEngine's input node follows the system
+    /// default with correct native format negotiation; poking the IO unit's
+    /// CurrentDevice property directly bypasses that and reliably fails to
+    /// start (-10868, format not supported).
+    ///
+    /// Bluetooth accessories (AirPods) can claim the default input mid
+    /// negotiation and keep re-asserting it for a moment after connecting,
+    /// so `AudioObjectSetPropertyData` can return `noErr` here and still get
+    /// silently overwritten a beat later by CoreAudio settling the new
+    /// device. Verify the pin actually stuck and retry once after a short
+    /// delay if it didn't, instead of firing-and-forgetting the call.
+    private func applyPreferredDevice(retriesRemaining: Int = 1) {
+        guard let wanted = SettingsStore.shared.settings.preferredInputDevice,
+              let deviceID = AudioDevices.deviceID(named: wanted) else { return }
+        // Skip when already the default: setting it unconditionally fires
+        // AVAudioEngineConfigurationChange, which triggers a rebuild, which
+        // re-pins... an endless restart loop that captures nothing.
+        guard AudioDevices.defaultInputDeviceID() != deviceID else { return }
+        let err = AudioDevices.setDefaultInputDevice(deviceID)
+        NSLog("AudioRecorder: pinning input to '%@' (err %d)", wanted, err)
+
+        guard retriesRemaining > 0 else { return }
+        // Re-check shortly after: give CoreAudio/Bluetooth negotiation a beat
+        // to settle, then confirm the pin held and retry once if it got
+        // clobbered by the system re-asserting the newly connected device.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self else { return }
+            guard AudioDevices.defaultInputDeviceID() != deviceID else { return }
+            NSLog("AudioRecorder: pin to '%@' did not stick, retrying", wanted)
+            self.applyPreferredDevice(retriesRemaining: retriesRemaining - 1)
+        }
+    }
+
+    /// Tear down and restart with a FRESH engine (input device change).
+    /// Reusing the old engine after a device swap leaves a stale graph that
+    /// fails to start with kAudioUnitErr (-10868).
+    func reconfigure() {
+        // A pending repin from the default-input-device listener is
+        // superseded by the fresh pin ensureEngineRunning() below performs
+        // against the new engine; drop it so it doesn't fire redundantly.
+        repinWorkItem?.cancel()
+        engine.stop()
+        engine.inputNode.removeTap(onBus: 0)
+        engine = AVAudioEngine()
+        observeEngine()
+        converter = nil
+        converterInputFormat = nil
+        tapInstalled = false
+        engineRunning = false
+        _ = ensureEngineRunning()
+    }
+
     private func process(_ buffer: AVAudioPCMBuffer) {
         lock.lock()
         let active = recording
@@ -130,7 +239,12 @@ final class AudioRecorder: ObservableObject {
         // unboundedly if the main thread ever stalls — that was the 7GB blowup.
         if active { publishLevel(from: buffer) }
 
-        guard active, let converter = converter else { return }
+        guard active else { return }
+        if converter == nil || converterInputFormat != buffer.format {
+            converter = AVAudioConverter(from: buffer.format, to: targetFormat)
+            converterInputFormat = buffer.format
+        }
+        guard let converter else { return }
 
         let ratio = targetFormat.sampleRate / buffer.format.sampleRate
         let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio + 1024)

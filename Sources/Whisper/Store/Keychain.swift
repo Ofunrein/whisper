@@ -86,4 +86,23 @@ enum Keychain {
             }
         }
     }
+
+    /// One-time bootstrap for keys that aren't in the shell profile: pass
+    /// WHISPER_BOOTSTRAP_KEY_<ACCOUNT> in the environment of a single launch
+    /// (e.g. `WHISPER_BOOTSTRAP_KEY_OPENAI=... open Whisper.app`) and this
+    /// writes it to Keychain FROM Whisper's own process. That matters
+    /// because a Keychain item's "always allow" ACL is bound to whichever
+    /// process created it — items written by the `security` CLI tool keep
+    /// prompting when Whisper reads them later, no matter how many times
+    /// "Always Allow" is clicked, since the CLI and the app are different
+    /// signed binaries. Writing through this path instead makes Whisper the
+    /// creator, so its own stable code-signing identity owns the ACL.
+    static func bootstrapFromEnvironment() {
+        for (account, _) in envNames {
+            guard let value = ProcessInfo.processInfo.environment["WHISPER_BOOTSTRAP_KEY_\(account.uppercased())"],
+                  !value.isEmpty else { continue }
+            set(value, for: account)
+            NSLog("Whisper: bootstrapped \(account) key into Keychain from this process")
+        }
+    }
 }

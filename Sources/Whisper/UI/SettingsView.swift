@@ -15,6 +15,9 @@ struct SettingsView: View {
             CleanupTab(store: store)
                 .tabItem { Label("Cleanup", systemImage: "wand.and.stars") }
 
+            VocabularyTab(store: store)
+                .tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
+
             OutputTab(store: store)
                 .tabItem { Label("Output", systemImage: "square.and.arrow.up") }
 
@@ -23,6 +26,7 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 560)
+        .onAppear { ModelCatalog.shared.refresh() }
     }
 }
 
@@ -35,6 +39,7 @@ private struct APIKeysTab: View {
     @State private var gemini: String = ""
     @State private var cerebras: String = ""
     @State private var openAI: String = ""
+    @State private var pendingClear: (title: String, text: Binding<String>, account: String)? = nil
 
     var body: some View {
         Form {
@@ -52,6 +57,21 @@ private struct APIKeysTab: View {
         }
         .padding(.top, 8)
         .onAppear(perform: loadAll)
+        .alert("Clear \(pendingClear?.title ?? "") key?", isPresented: Binding(
+            get: { pendingClear != nil },
+            set: { if !$0 { pendingClear = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { pendingClear = nil }
+            Button("Clear", role: .destructive) {
+                if let pending = pendingClear {
+                    pending.text.wrappedValue = ""
+                    Keychain.set("", for: pending.account)
+                }
+                pendingClear = nil
+            }
+        } message: {
+            Text("This removes the stored key. You'll need to paste it again to use this provider.")
+        }
     }
 
     private func keyRow(_ title: String, text: Binding<String>, account: String) -> some View {
@@ -63,6 +83,14 @@ private struct APIKeysTab: View {
                 .onChange(of: text.wrappedValue) { newValue in
                     Keychain.set(newValue, for: account)
                 }
+            Button {
+                pendingClear = (title, text, account)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+            }
+            .buttonStyle(.borderless)
+            .disabled(text.wrappedValue.isEmpty)
+            .help("Clear \(title) key")
         }
     }
 
@@ -83,6 +111,17 @@ private struct ProvidersTab: View {
 
     var body: some View {
         Form {
+            GroupBox("Microphone") {
+                Picker("Input device", selection: Binding(
+                    get: { store.settings.preferredInputDevice ?? "" },
+                    set: { store.settings.preferredInputDevice = $0.isEmpty ? nil : $0 }
+                )) {
+                    Text("System Default").tag("")
+                    ForEach(AudioDevices.inputDeviceNames(), id: \.self) { Text($0).tag($0) }
+                }
+                .padding(8)
+            }
+
             GroupBox("Speech-to-Text") {
                 Picker("STT Provider", selection: $store.settings.sttProvider) {
                     ForEach(STTProviderKind.allCases) { kind in
@@ -101,23 +140,24 @@ private struct ProvidersTab: View {
                     }
                     Divider()
                     Text("Model overrides").font(.caption).foregroundStyle(.secondary)
-                    LabeledContent("Gemini model") {
-                        TextField("", text: $store.settings.geminiModel).textFieldStyle(.roundedBorder)
-                    }
-                    LabeledContent("Groq cleanup model") {
-                        TextField("", text: $store.settings.groqCleanupModel).textFieldStyle(.roundedBorder)
-                    }
-                    LabeledContent("Cerebras model") {
-                        TextField("", text: $store.settings.cerebrasModel).textFieldStyle(.roundedBorder)
-                    }
-                    LabeledContent("OpenAI cleanup model") {
-                        TextField("", text: $store.settings.openAICleanupModel).textFieldStyle(.roundedBorder)
-                    }
-                    LabeledContent("Ollama model") {
-                        TextField("", text: $store.settings.ollamaModel).textFieldStyle(.roundedBorder)
-                    }
+                    ModelPicker(label: "Gemini model", provider: .gemini, selection: $store.settings.geminiModel)
+                    ModelPicker(label: "Groq cleanup model", provider: .groq, selection: $store.settings.groqCleanupModel)
+                    ModelPicker(label: "Cerebras model", provider: .cerebras, selection: $store.settings.cerebrasModel)
+                    ModelPicker(label: "OpenAI cleanup model", provider: .openAI, selection: $store.settings.openAICleanupModel)
+                    ModelPicker(label: "Ollama model", provider: .ollama, selection: $store.settings.ollamaModel)
                     LabeledContent("Ollama base URL") {
                         TextField("", text: $store.settings.ollamaBaseURL).textFieldStyle(.roundedBorder)
+                    }
+                    HStack {
+                        Spacer()
+                        Button("Restore Model Defaults") {
+                            store.settings.geminiModel = AppSettings.defaultGeminiModel
+                            store.settings.groqCleanupModel = AppSettings.defaultGroqCleanupModel
+                            store.settings.cerebrasModel = AppSettings.defaultCerebrasModel
+                            store.settings.openAICleanupModel = AppSettings.defaultOpenAICleanupModel
+                            store.settings.ollamaModel = AppSettings.defaultOllamaModel
+                            store.settings.ollamaBaseURL = AppSettings.defaultOllamaBaseURL
+                        }
                     }
                 }
                 .padding(8)
@@ -173,6 +213,79 @@ private struct CleanupTab: View {
     }
 }
 
+// MARK: - Vocabulary
+
+private struct VocabularyTab: View {
+    @ObservedObject var store: SettingsStore
+    @State private var newFrom: String = ""
+    @State private var newTo: String = ""
+
+    var body: some View {
+        Form {
+            GroupBox("Vocabulary") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Words the cleanup model should always spell exactly as given (names, brands, jargon), plus replacement pairs applied directly to every transcript — even with cleanup off — to fix consistent mishears.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if store.settings.vocabulary.isEmpty {
+                        Text("No vocabulary entries yet").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(Array(store.settings.vocabulary.enumerated()), id: \.element.id) { index, entry in
+                            HStack {
+                                Text(entry.from)
+                                if let to = entry.to {
+                                    Image(systemName: "arrow.right").foregroundStyle(.secondary)
+                                    Text(to)
+                                } else {
+                                    Text("(known term)").font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button(role: .destructive) {
+                                    store.settings.vocabulary.remove(at: index)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    HStack {
+                        TextField("Word or misheard phrase", text: $newFrom)
+                            .textFieldStyle(.roundedBorder)
+                        Image(systemName: "arrow.right").foregroundStyle(.secondary)
+                        TextField("Correct spelling (optional)", text: $newTo)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Add") {
+                            guard !newFrom.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                            let to = newTo.trimmingCharacters(in: .whitespaces)
+                            store.settings.vocabulary.append(VocabularyEntry(from: newFrom, to: to.isEmpty ? nil : to))
+                            newFrom = ""
+                            newTo = ""
+                        }
+                        .disabled(newFrom.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    Text("Leave the right side blank to just teach spelling; fill it in to replace a specific mishearing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        Spacer()
+                        Button("Restore Defaults") {
+                            store.settings.vocabulary = defaultVocabulary
+                        }
+                    }
+                }
+                .padding(8)
+            }
+        }
+        .padding(.top, 8)
+    }
+}
+
 // MARK: - Output
 
 private struct OutputTab: View {
@@ -187,8 +300,58 @@ private struct OutputTab: View {
                             Text(mode.displayName).tag(mode)
                         }
                     }
+                    if store.settings.outputMode == .pasteAtCursor {
+                        Toggle("Keep transcript on clipboard after paste", isOn: $store.settings.keepOnClipboardAfterPaste)
+                    }
                     Toggle("Save audio recordings", isOn: $store.settings.saveAudio)
                     Toggle("Play sound when recording starts/stops", isOn: $store.settings.soundEffectsEnabled)
+
+                    Divider()
+
+                    Picker("Sound", selection: $store.settings.soundSet) {
+                        ForEach(SoundSet.allCases) { set in
+                            Text(set.displayName).tag(set)
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        Text("Preview")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Start") {
+                            SoundPlayer.preview(.start, set: store.settings.soundSet)
+                        }
+                        Button("Stop") {
+                            SoundPlayer.preview(.stop, set: store.settings.soundSet)
+                        }
+                        Button("Error") {
+                            SoundPlayer.preview(.error, set: store.settings.soundSet)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(8)
+            }
+
+            GroupBox("Recordings") {
+                VStack(alignment: .leading, spacing: 10) {
+                    LabeledContent("Save location") {
+                        HStack {
+                            Text(store.settings.recordingsDirectory ?? HistoryStore.directory.appendingPathComponent("audio").path)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .foregroundStyle(.secondary)
+                            Button("Browse…") { chooseFolder() }
+                            if store.settings.recordingsDirectory != nil {
+                                Button("Restore Default") { store.settings.recordingsDirectory = nil }
+                            }
+                        }
+                    }
+                    Picker("Keep recordings for", selection: $store.settings.recordingRetention) {
+                        ForEach(RecordingRetention.allCases) { r in
+                            Text(r.displayName).tag(r)
+                        }
+                    }
                 }
                 .padding(8)
             }
@@ -200,14 +363,58 @@ private struct OutputTab: View {
                             Text(p.displayName).tag(p)
                         }
                     }
-                    Text("You can also drag the pill anywhere; dragging switches to Custom.")
+                Text("Drag near an edge or corner to magnet-snap like SuperWhisper. Drop in the middle to keep Custom.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Divider()
+                    Picker("Style", selection: $store.settings.pillStyle) {
+                        ForEach(PillStyle.allCases) { s in
+                            Text(s.displayName).tag(s)
+                        }
+                    }
+                    Toggle("Always show (even when idle)", isOn: $store.settings.pillAlwaysShow)
+                    HStack {
+                        Text("Size")
+                        Slider(value: $store.settings.pillScale, in: 0.6...1.6, step: 0.05)
+                        Text("\(Int(store.settings.pillScale * 100))%")
+                            .frame(width: 44, alignment: .trailing)
+                            .monospacedDigit()
+                        Button("Reset") { store.settings.pillScale = 1.0 }
+                    }
+                }
+                .padding(8)
+            }
+
+            GroupBox("While Recording") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Other audio playback", selection: $store.settings.playbackDuckMode) {
+                        ForEach(PlaybackDuckMode.allCases) { m in
+                            Text(m.displayName).tag(m)
+                        }
+                    }
+                }
+                .padding(8)
+            }
+
+            GroupBox("Application") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Launch at login", isOn: $store.settings.launchAtLogin)
                 }
                 .padding(8)
             }
         }
         .padding(.top, 8)
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        if panel.runModal() == .OK, let url = panel.url {
+            store.settings.recordingsDirectory = url.path
+        }
     }
 }
 
@@ -259,12 +466,23 @@ private struct HotkeyTab: View {
 
                     Divider()
 
+                    Text("Common defaults").font(.caption).foregroundStyle(.secondary)
+
                     Button("Use Fn key (default)") {
                         addBinding(HotkeyBinding(kind: .fnKey, keyCode: nil, modifiers: nil, mouseButton: nil, style: recordingStyle))
                     }
 
-                    Button("Use Right Command") {
-                        addBinding(HotkeyBinding(kind: .keyCombo, keyCode: 54, modifiers: 0, mouseButton: nil, style: recordingStyle))
+                    let modifierPresets: [(String, UInt16)] = [
+                        ("Right Command", 54), ("Left Command", 55),
+                        ("Right Option", 61), ("Left Option", 58),
+                        ("Right Control", 62), ("Right Shift", 60),
+                    ]
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+                        ForEach(modifierPresets, id: \.1) { name, code in
+                            Button("Use \(name)") {
+                                addBinding(HotkeyBinding(kind: .keyCombo, keyCode: code, modifiers: 0, mouseButton: nil, style: recordingStyle))
+                            }
+                        }
                     }
 
                     HStack {
@@ -280,6 +498,20 @@ private struct HotkeyTab: View {
                             addBinding(HotkeyBinding(kind: .mouseButton, keyCode: nil, modifiers: nil, mouseButton: mouseButtonSelection, style: recordingStyle))
                         }
                     }
+
+                    HStack {
+                        Text("Hold threshold (right-click)")
+                        Slider(value: $store.settings.rightClickHoldThresholdMs, in: 100...2000, step: 50)
+                        Text("\(String(format: "%.1f", store.settings.rightClickHoldThresholdMs / 1000))s")
+                            .frame(width: 48, alignment: .trailing)
+                            .monospacedDigit()
+                    }
+                    Button("Use Right-Click (hold)") {
+                        addBinding(HotkeyBinding(kind: .rightClick, keyCode: nil, modifiers: nil, mouseButton: nil, style: recordingStyle))
+                    }
+                    Text("A quick right-click still opens the context menu; holding past the threshold starts recording instead. macOS may briefly flash the context menu before the hold is recognized — this is a platform limitation of global event monitors.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(8)
             }
@@ -361,6 +593,8 @@ private struct HotkeyTab: View {
             default: name = "Button \(binding.mouseButton ?? -1)"
             }
             return "\(name) (\(binding.style.rawValue))"
+        case .rightClick:
+            return "Right-Click hold (\(binding.style.rawValue))"
         }
     }
 
@@ -378,5 +612,55 @@ private struct HotkeyTab: View {
             26: "7", 28: "8", 25: "9",
         ]
         return names[keyCode] ?? "Key \(keyCode)"
+    }
+}
+
+/// Dropdown fed by the provider's live /models endpoint; falls back to a
+/// free-text field until the list loads (no key, offline, etc.). Current
+/// value is always selectable even if the provider no longer lists it.
+private struct ModelPicker: View {
+    let label: String
+    let provider: ModelCatalog.Provider
+    @Binding var selection: String
+    @ObservedObject private var catalog = ModelCatalog.shared
+
+    private var isPullingThis: Bool { catalog.pullingOllamaModel == selection }
+
+    var body: some View {
+        LabeledContent(label) {
+            HStack {
+                if let list = catalog.models[provider], !list.isEmpty {
+                    Picker("", selection: $selection) {
+                        if !list.contains(selection) { Text(selection).tag(selection) }
+                        ForEach(list, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 320)
+                } else {
+                    TextField("", text: $selection).textFieldStyle(.roundedBorder)
+                }
+
+                if provider == .ollama {
+                    if catalog.isOllamaModelInstalled(selection) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        if let bytes = catalog.ollamaModelSizes[selection] {
+                            Text(ModelCatalog.formattedSize(bytes))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if isPullingThis {
+                        ProgressView().controlSize(.small)
+                        Text(catalog.pullProgress).font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Button("Download") {
+                            Task { await catalog.pullOllamaModel(selection) }
+                        }
+                        .disabled(catalog.pullingOllamaModel != nil || selection.isEmpty)
+                        .help("Not installed locally — pull it via Ollama before selecting")
+                    }
+                }
+            }
+        }
     }
 }

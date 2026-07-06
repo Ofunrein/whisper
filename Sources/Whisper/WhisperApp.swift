@@ -69,7 +69,7 @@ enum SelfTest {
         // Stage 3: output (clipboard only — safe for QA)
         let final = cleaned ?? raw
         await MainActor.run {
-            OutputRouter().deliver(text: final, mode: .copyOnly)
+            OutputRouter().deliver(text: final, mode: .copyOnly, keepOnClipboard: true)
         }
         let clip = await MainActor.run { NSPasteboard.general.string(forType: .string) }
         print(clip == final ? "[selftest] Clipboard OK" : "[selftest] Clipboard FAIL")
@@ -86,10 +86,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let pipeline = DictationPipeline()
     private let hotkeys = HotkeyMonitor()
     private var settingsCancellable: AnyCancellable?
+    private var lastInputDevice: String?
+    private var lastPillScale: Double = 1.0
+    private var clipboardRestoreMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         checkPermissions()
+        Keychain.bootstrapFromEnvironment()
         Keychain.importFromLoginShellEnv()
+
+        // Migration: default hotkey changed Fn -> Right Command. Drop old Fn
+        // bindings (re-addable via Settings); ensure at least one binding.
+        // Pin the Yeti X once if present and no mic was chosen yet.
+        if SettingsStore.shared.settings.preferredInputDevice == nil,
+           let yeti = AudioDevices.inputDeviceNames().first(where: { $0.contains("Yeti") }) {
+            SettingsStore.shared.settings.preferredInputDevice = yeti
+        }
+
+        var migrated = SettingsStore.shared.settings.bindings.filter { $0.kind != .fnKey }
+        if migrated.isEmpty { migrated = [.defaultRightCommand] }
+        if migrated != SettingsStore.shared.settings.bindings {
+            SettingsStore.shared.settings.bindings = migrated
+        }
+
+        // Migration: seed default vocabulary (name/term corrections) into
+        // installs from before the Vocabulary feature existed.
+        if !UserDefaults.standard.bool(forKey: Self.hasSeededVocabularyKey) {
+            UserDefaults.standard.set(true, forKey: Self.hasSeededVocabularyKey)
+            if SettingsStore.shared.settings.vocabulary.isEmpty {
+                SettingsStore.shared.settings.vocabulary = defaultVocabulary
+            }
+        }
 
         // Warm the audio engine now: the first engine.start() costs ~1.7s
         // (HAL spin-up). Deferred to hotkey-press it swallows the opening
@@ -113,25 +140,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.onRecordStop = { [weak self] in self?.pipeline.recordStop() }
         hotkeys.start()
 
+        // Cmd+Shift+Z: restore the clipboard to what it was before the last
+        // dictation paste. Deliberately not Cmd+Z — that's the universal
+        // system undo shortcut and must never be hijacked globally.
+        clipboardRestoreMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 6, // "z"
+                  event.modifierFlags.intersection([.command, .shift, .option, .control]) == [.command, .shift]
+            else { return }
+            _ = OutputRouter.restorePreviousClipboard()
+        }
+
         // Keep bindings + pill placement in sync with Settings edits.
+        lastInputDevice = SettingsStore.shared.settings.preferredInputDevice
+        lastPillScale = SettingsStore.shared.settings.pillScale
         settingsCancellable = SettingsStore.shared.$settings
             .removeDuplicates()
             .sink { [weak self] settings in
                 self?.hotkeys.updateBindings(settings.bindings)
+                if settings.preferredInputDevice != self?.lastInputDevice {
+                    self?.lastInputDevice = settings.preferredInputDevice
+                    self?.pipeline.recorder.reconfigure()
+                }
                 if settings.pillPlacement != .custom {
                     PillController.shared.applyPlacement(settings.pillPlacement)
+                }
+                if settings.pillScale != self?.lastPillScale {
+                    self?.lastPillScale = settings.pillScale
+                    PillController.shared.applyScale()
                 }
             }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         hotkeys.stop()
+        if let monitor = clipboardRestoreMonitor { NSEvent.removeMonitor(monitor) }
     }
 
     /// Only ever nag the user once. After that, permissions are checked
     /// silently (no OS prompt, no alert) so a rebuild/relaunch never asks
     /// again for something already granted or already declined.
     private static let hasPromptedKey = "whisper.hasPromptedForPermissionsOnce"
+    private static let hasSeededVocabularyKey = "whisper.hasSeededVocabularyOnce"
 
     private func checkPermissions() {
         let micOK = Permissions.microphoneStatus() == .authorized

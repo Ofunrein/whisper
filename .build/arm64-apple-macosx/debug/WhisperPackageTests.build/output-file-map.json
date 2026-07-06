@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.build/primary.swiftdeps"
+  },
+  "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.build/runner.d",
+    "object": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.build/runner.dia"
+  }
+}

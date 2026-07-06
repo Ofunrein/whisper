@@ -21,10 +21,33 @@ final class HistoryStore: ObservableObject {
         return base
     }
     private var fileURL: URL { Self.directory.appendingPathComponent("history.json") }
+
+    /// Where saved WAV recordings live. Respects a user-chosen custom folder
+    /// (Output settings -> Browse); falls back to Application Support.
     static var audioDirectory: URL {
+        if let custom = SettingsStore.shared.settings.recordingsDirectory {
+            let url = URL(fileURLWithPath: custom, isDirectory: true)
+            try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            return url
+        }
         let dir = directory.appendingPathComponent("audio", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    /// Deletes saved WAV files older than the configured retention window.
+    /// No-op when retention is set to Forever.
+    func pruneExpiredAudio() {
+        guard let days = SettingsStore.shared.settings.recordingRetention.days else { return }
+        let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
+        let dir = Self.audioDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return }
+        for file in files {
+            guard let modified = try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
+                  modified < cutoff else { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 
     init() { load() }

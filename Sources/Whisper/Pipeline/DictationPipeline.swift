@@ -27,6 +27,7 @@ final class DictationPipeline: ObservableObject {
         NSLog("Whisper: recordStart")
         recorder.prewarm()
         recorder.start()
+        PlaybackDucker.duckForRecording()
         SoundPlayer.playStart()
         onStateChange?(.recording)
     }
@@ -35,11 +36,13 @@ final class DictationPipeline: ObservableObject {
         guard !busy else { return }
         guard let wav = recorder.stop() else {
             NSLog("Whisper: recordStop -> no audio captured (too short or engine failed)")
+            PlaybackDucker.restoreAfterRecording()
             SoundPlayer.playError()
             onStateChange?(.idle)
             return
         }
         NSLog("Whisper: recordStop -> %d bytes captured", wav.count)
+        PlaybackDucker.restoreAfterRecording()
         SoundPlayer.playStop()
         busy = true
         onStateChange?(.processing)
@@ -77,16 +80,18 @@ final class DictationPipeline: ObservableObject {
         let cleaned = settings.cleanupEnabled
             ? await cleanWithTimeout(raw, settings: settings)
             : nil
-        let finalText = cleaned ?? raw
+        // 3. Vocabulary replacements always run, cleanup or not — they fix
+        // STT mishears (e.g. a misheard name) the cleanup model may not catch.
+        let finalText = VocabularyEngine.applyReplacements(cleaned ?? raw, vocabulary: settings.vocabulary)
 
-        // 3. Output on the main thread (pasteboard + CGEvent).
+        // 4. Output on the main thread (pasteboard + CGEvent).
         let appName = await MainActor.run { () -> String? in
             let name = self.output.frontmostAppName()
-            self.output.deliver(text: finalText, mode: settings.outputMode)
+            self.output.deliver(text: finalText, mode: settings.outputMode, keepOnClipboard: settings.keepOnClipboardAfterPaste)
             return name
         }
 
-        // 4. History (off the hot path).
+        // 5. History (off the hot path).
         var audioFileName: String? = nil
         if settings.saveAudio {
             let name = "\(UUID().uuidString).wav"
@@ -112,7 +117,7 @@ final class DictationPipeline: ObservableObject {
     /// Static, UI-free version usable from selftest and tests.
     static func cleanWithTimeout(_ text: String, settings: AppSettings) async -> String? {
         let cleaner = ProviderFactory.cleaner(for: settings)
-        let instruction = settings.cleanupInstructions
+        let instruction = settings.cleanupInstructions + (VocabularyEngine.hint(for: settings.vocabulary) ?? "")
         let timeout = settings.cleanupTimeoutSeconds
 
         return await withTaskGroup(of: String?.self) { group in
