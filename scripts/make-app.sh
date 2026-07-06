@@ -14,11 +14,16 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp -R Resources/Sounds "$APP/Contents/Resources/Sounds"
 
-# Ad-hoc signing deliberately avoids touching any signing certificate in
-# macOS Keychain. Provider keys are no longer stored in Keychain, so stable
-# cert identity is not needed, and cert signing can itself cause password
-# prompts on rebuild.
-codesign --force --deep --sign - "$APP"
+# Stable local signing keeps macOS TCC Accessibility trust attached across
+# rebuilds. Ad-hoc signing changes cdhash every build, so the Accessibility
+# checkbox can look enabled while AXIsProcessTrusted() returns false.
+SIGN_ID="Whisper Dev Signing"
+if security find-identity -v -p codesigning | grep -q "$SIGN_ID"; then
+  codesign --force --deep --sign "$SIGN_ID" "$APP"
+else
+  echo "Missing $SIGN_ID; falling back to ad-hoc signing" >&2
+  codesign --force --deep --sign - "$APP"
+fi
 # Also install into /Applications so Raycast/Spotlight index it as a real app,
 # not a transient repo build artifact that loses to Superwhisper.app.
 INSTALL_APP=/Applications/Whisperer.app

@@ -89,16 +89,16 @@ final class OutputRouter {
     }
 
     private func pasteViaCommandV(targetPID: pid_t?) {
-        guard AXIsProcessTrusted() else {
-            logPaste("blocked: Accessibility permission missing")
-            NSLog("Whisper: Accessibility permission missing; cannot auto-paste")
+        guard Permissions.accessibilityTrusted(prompt: true) else {
+            logPaste("blocked: Accessibility permission missing; prompted user")
+            NSLog("Whisper: Accessibility permission missing; prompted user")
             return
         }
 
         let front = NSWorkspace.shared.frontmostApplication
-        logPaste("posting explicit command-v front=\(front?.localizedName ?? "nil") frontPID=\(front?.processIdentifier.description ?? "nil") target=\(targetPID.map(String.init) ?? "nil")")
-        postExplicitCommandV()
-        NSLog("Whisper: auto-paste sent explicit Command-V chord")
+        logPaste("typing text into front=\(front?.localizedName ?? "nil") frontPID=\(front?.processIdentifier.description ?? "nil") target=\(targetPID.map(String.init) ?? "nil")")
+        typeUnicodeTextFromClipboard()
+        NSLog("Whisper: auto-paste typed clipboard text into frontmost app")
     }
 
     private func activateTarget(_ targetPID: pid_t?) {
@@ -130,6 +130,38 @@ final class OutputRouter {
         DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) { vDown.post(tap: .cghidEventTap) }
         DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay * 2) { vUp.post(tap: .cghidEventTap) }
         DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay * 3) { commandUp.post(tap: .cghidEventTap) }
+    }
+
+    private func typeUnicodeTextFromClipboard() {
+        guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else {
+            logPaste("failed: clipboard empty before type")
+            return
+        }
+        let source = CGEventSource(stateID: .hidSystemState)
+            ?? CGEventSource(stateID: .combinedSessionState)
+        var delay: TimeInterval = 0
+        var count = 0
+        for scalar in text.unicodeScalars {
+            let chunk = String(scalar)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.postUnicodeCharacter(chunk, source: source)
+            }
+            delay += 0.006
+            count += 1
+        }
+        logPaste("typed unicode chars=\(count)")
+    }
+
+    private func postUnicodeCharacter(_ character: String, source: CGEventSource?) {
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else { return }
+        var chars = Array(character.utf16)
+        chars.withUnsafeMutableBufferPointer { buffer in
+            down.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: buffer.baseAddress)
+            up.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: buffer.baseAddress)
+        }
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
     }
 
     private func logPaste(_ message: String) {
