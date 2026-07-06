@@ -156,11 +156,11 @@ final class PillController: NSObject {
             guard let x = s.pillPositionX, let y = s.pillPositionY else { return nil }
             return NSPoint(x: x, y: y)
         default:
-            return origin(for: placement, size: size, in: visible)
+            return Self.origin(for: placement, size: size, in: visible)
         }
     }
 
-    private func origin(for placement: PillPlacement, size: NSSize, in visible: NSRect) -> NSPoint {
+    static func origin(for placement: PillPlacement, size: NSSize, in visible: NSRect) -> NSPoint {
         let margin: CGFloat = 24
         let minCenterX = visible.minX + margin + size.width / 2
         let maxCenterX = visible.maxX - margin - size.width / 2
@@ -218,49 +218,36 @@ final class PillController: NSObject {
         })
     }
 
-    /// SuperWhisper-style snap grid observed in the reference video: 5 columns by
-    /// 5 rows around the perimeter, plus a center slot.
+    /// SuperWhisper-style snap grid observed in reference video: 5 columns by
+    /// 5 rows around the perimeter, plus center. Every drop zone resolves to
+    /// the nearest slot, not only when close to an edge.
     private func snapToNearestPlacement() {
         let frame = panel.frame
         let visible = screenContaining(frame).visibleFrame
-        let placement = magneticPlacement(for: frame, in: visible)
+        let placement = Self.nearestPlacement(for: frame, in: visible)
         var settings = SettingsStore.shared.settings
-
-        if let placement {
-            settings.pillPlacement = placement
-            SettingsStore.shared.settings = settings
-            applyPlacement(placement)
-        } else {
-            settings.pillPlacement = .custom
-            SettingsStore.shared.settings = settings
-            persistPosition()
-        }
+        settings.pillPlacement = placement
+        SettingsStore.shared.settings = settings
+        applyPlacement(placement)
     }
 
-    private func magneticPlacement(for frame: NSRect, in visible: NSRect) -> PillPlacement? {
+    static func nearestPlacement(for frame: NSRect, in visible: NSRect) -> PillPlacement {
         let size = frame.size
-        let snapRadius = max(CGFloat(170), min(visible.width, visible.height) * 0.16)
-        let ringBand = max(CGFloat(150), min(visible.width, visible.height) * 0.12)
         let center = NSPoint(x: frame.midX, y: frame.midY)
-        let inOuterRing = min(
-            abs(frame.minX - visible.minX),
-            abs(visible.maxX - frame.maxX),
-            abs(frame.minY - visible.minY),
-            abs(visible.maxY - frame.maxY)
-        ) <= ringBand
-
         var best: (placement: PillPlacement, distance: CGFloat)?
+
         for placement in PillPlacement.allCases where placement != .custom {
-            let target = origin(for: placement, size: size, in: visible)
+            let target = Self.origin(for: placement, size: size, in: visible)
             let targetCenter = NSPoint(x: target.x + size.width / 2, y: target.y + size.height / 2)
-            let distance = hypot(center.x - targetCenter.x, center.y - targetCenter.y)
+            let dx = center.x - targetCenter.x
+            let dy = center.y - targetCenter.y
+            let distance = dx * dx + dy * dy
             if distance < (best?.distance ?? .greatestFiniteMagnitude) {
                 best = (placement, distance)
             }
         }
 
-        guard let best else { return nil }
-        return (best.distance <= snapRadius || inOuterRing) ? best.placement : nil
+        return best?.placement ?? .bottomCenter
     }
 
     func setLevel(_ f: Float) {

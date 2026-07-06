@@ -512,6 +512,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/SnapPlacementTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
         },
         {
@@ -528,7 +532,8 @@
       "moduleOutputPath" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Modules/WhisperTests.swiftmodule",
       "objects" : [
         "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/PipelineTests.swift.o",
-        "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/PlaceholderTests.swift.o"
+        "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/PlaceholderTests.swift.o",
+        "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/SnapPlacementTests.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -590,13 +595,18 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/SnapPlacementTests.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Modules/WhisperTests.swiftmodule"
         }
       ],
       "prepareForIndexing" : false,
       "sources" : [
         "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/PipelineTests.swift",
-        "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/PlaceholderTests.swift"
+        "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/PlaceholderTests.swift",
+        "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/SnapPlacementTests.swift"
       ],
       "tempsPath" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build",
       "wholeModuleOptimization" : false
@@ -764,6 +774,7 @@
       "-c",
       "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/PipelineTests.swift",
       "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/PlaceholderTests.swift",
+      "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/SnapPlacementTests.swift",
       "-I",
       "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/Modules",
       "-target",
@@ -1276,6 +1287,10 @@
         {
           "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/PlaceholderTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/SnapPlacementTests.swift.o"
         }
       ],
       "outputFilePath" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperPackageTests.product/Objects.LinkFileList"
@@ -1294,6 +1309,10 @@
         {
           "kind" : "file",
           "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/PlaceholderTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/martinofunrein/Downloads/atlas/whisper/Tests/WhisperTests/SnapPlacementTests.swift"
         }
       ],
       "outputFilePath" : "/Users/martinofunrein/Downloads/atlas/whisper/.build/arm64-apple-macosx/debug/WhisperTests.build/sources"

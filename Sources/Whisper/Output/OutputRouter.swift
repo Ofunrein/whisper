@@ -2,12 +2,12 @@ import Foundation
 import AppKit
 import CoreGraphics
 
-/// Delivers transcribed text to the user: paste at cursor, copy only, or paste and keep.
+/// Delivers transcribed text: paste at cursor, copy only, or paste and keep.
 final class OutputRouter {
-    private let pasteDelay: TimeInterval = 0.35
-    private let keyHoldDelay: TimeInterval = 0.04
-    private let restoreDelay: TimeInterval = 0.3
-    private let vKeyCode: CGKeyCode = 9 // "v"
+    private let pasteDelay: TimeInterval = 0.45
+    private let keyHoldDelay: TimeInterval = 0.08
+    private let restoreDelay: TimeInterval = 0.6
+    private let vKeyCode: CGKeyCode = 9 // v
 
     private static var history: [[(NSPasteboard.PasteboardType, Data)]] = []
     private static let maxHistory = 5
@@ -77,7 +77,9 @@ final class OutputRouter {
     }
 
     private func pasteAfterClipboardSettles(text: String, targetPID: pid_t?) {
+        activateTarget(targetPID)
         DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay) {
+            self.activateTarget(targetPID)
             self.pasteViaCommandV(text: text, targetPID: targetPID)
         }
     }
@@ -93,17 +95,16 @@ final class OutputRouter {
             return
         }
 
-        let source = CGEventSource(stateID: .hidSystemState)
-            ?? CGEventSource(stateID: .combinedSessionState)
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false) else { return }
+        postCommandVToHID()
+        NSLog("Whisper: auto-paste sent Command-V to frontmost app")
+    }
 
-        down.flags = .maskCommand
-        up.flags = .maskCommand
-        post(down, targetPID: targetPID)
-        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) {
-            self.post(up, targetPID: targetPID)
-        }
+    private func activateTarget(_ targetPID: pid_t?) {
+        guard let targetPID,
+              targetPID > 0,
+              let target = NSRunningApplication(processIdentifier: targetPID),
+              target.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        target.activate(options: [.activateIgnoringOtherApps])
     }
 
     private func insertFocusedTextViaAccessibility(_ text: String) -> Bool {
@@ -117,11 +118,17 @@ final class OutputRouter {
         return selectedStatus == .success
     }
 
-    private func post(_ event: CGEvent, targetPID: pid_t?) {
-        if let targetPID, targetPID > 0 {
-            event.postToPid(targetPID)
-        } else {
-            event.post(tap: .cghidEventTap)
+    private func postCommandVToHID() {
+        let source = CGEventSource(stateID: .hidSystemState)
+            ?? CGEventSource(stateID: .combinedSessionState)
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false) else { return }
+
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) {
+            up.post(tap: .cghidEventTap)
         }
     }
 }

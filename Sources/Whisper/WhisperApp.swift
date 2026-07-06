@@ -7,6 +7,15 @@ struct WhisperApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
+        // Clipboard and paste QA: Whisper --paste-test "text" [targetPID]
+        if let idx = CommandLine.arguments.firstIndex(of: "--paste-test") {
+            let text = CommandLine.arguments.indices.contains(idx + 1)
+                ? CommandLine.arguments[idx + 1] : "Whisper paste test"
+            let pid = CommandLine.arguments.indices.contains(idx + 2)
+                ? pid_t(CommandLine.arguments[idx + 2]) : nil
+            PasteTest.run(text: text, targetPID: pid)
+        }
+
         // End-to-end pipeline QA without mic/hotkey: Whisper --selftest <file.wav>
         if let idx = CommandLine.arguments.firstIndex(of: "--selftest") {
             let wavPath = CommandLine.arguments.indices.contains(idx + 1)
@@ -19,6 +28,25 @@ struct WhisperApp: App {
         SwiftUI.Settings {
             EmptyView()
         }
+    }
+}
+
+/// Runs output routing against the target app, then exits.
+enum PasteTest {
+    static func run(text: String, targetPID: pid_t?) -> Never {
+        Task {
+            await MainActor.run {
+                let pid = targetPID ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
+                OutputRouter().deliver(text: text, mode: .pasteAtCursor, keepOnClipboard: true, targetPID: pid)
+            }
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            let clip = await MainActor.run { NSPasteboard.general.string(forType: .string) ?? "" }
+            print(clip == text ? "[paste-test] Clipboard OK" : "[paste-test] Clipboard FAIL")
+            print("[paste-test] Sent text bytes: \(text.utf8.count)")
+            exit(0)
+        }
+        RunLoop.main.run()
+        exit(0)
     }
 }
 

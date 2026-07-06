@@ -32,7 +32,11 @@ protocol CleanupProvider {
 enum SharedHTTP {
     static let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        // Recording is user-controlled with no app-side max duration. Long dictations
+        // produce larger uploads, so provider calls get a long transport window instead
+        // of cutting off at 30 seconds.
+        config.timeoutIntervalForRequest = 600
+        config.timeoutIntervalForResource = 1800
         config.httpMaximumConnectionsPerHost = 4
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: config)
