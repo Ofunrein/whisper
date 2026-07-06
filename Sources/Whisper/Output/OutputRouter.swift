@@ -5,6 +5,7 @@ import CoreGraphics
 /// Delivers transcribed text to the user: paste at cursor (with clipboard
 /// restore), copy only, or paste and keep.
 final class OutputRouter {
+    private let pasteDelay: TimeInterval = 0.08
     private let restoreDelay: TimeInterval = 0.3
     private let vKeyCode: CGKeyCode = 9 // "v"
 
@@ -21,16 +22,16 @@ final class OutputRouter {
             setClipboard(text)
         case .pasteAndKeep:
             setClipboard(text)
-            pasteViaCommandV()
+            pasteAfterClipboardSettles()
         case .pasteAtCursor:
             let saved = snapshotClipboard()
             Self.history.append(saved)
             if Self.history.count > Self.maxHistory { Self.history.removeFirst() }
             setClipboard(text)
-            pasteViaCommandV()
+            pasteAfterClipboardSettles()
             guard !keepOnClipboard else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) { [weak self] in
-                self?.restoreClipboard(saved)
+            DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay + restoreDelay) {
+                self.restoreClipboard(saved)
             }
         }
     }
@@ -86,6 +87,12 @@ final class OutputRouter {
     }
 
     // MARK: - Paste synthesis
+
+    private func pasteAfterClipboardSettles() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay) {
+            self.pasteViaCommandV()
+        }
+    }
 
     private func pasteViaCommandV() {
         let source = CGEventSource(stateID: .combinedSessionState)
