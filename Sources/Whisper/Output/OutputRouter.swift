@@ -5,7 +5,8 @@ import CoreGraphics
 /// Delivers transcribed text to the user: paste at cursor (with clipboard
 /// restore), copy only, or paste and keep.
 final class OutputRouter {
-    private let pasteDelay: TimeInterval = 0.08
+    private let pasteDelay: TimeInterval = 0.35
+    private let keyHoldDelay: TimeInterval = 0.04
     private let restoreDelay: TimeInterval = 0.3
     private let vKeyCode: CGKeyCode = 9 // "v"
 
@@ -95,12 +96,21 @@ final class OutputRouter {
     }
 
     private func pasteViaCommandV() {
-        let source = CGEventSource(stateID: .combinedSessionState)
+        guard AXIsProcessTrusted() else {
+            NSLog("Whisper: Accessibility permission missing; cannot auto-paste")
+            return
+        }
+
+        let source = CGEventSource(stateID: .hidSystemState)
+            ?? CGEventSource(stateID: .combinedSessionState)
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false) else { return }
+
         down.flags = .maskCommand
         up.flags = .maskCommand
         down.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) {
+            up.post(tap: .cghidEventTap)
+        }
     }
 }

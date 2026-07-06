@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AppKit
 
 /// Orchestrates one dictation: hotkey-down starts capture, hotkey-up runs
 /// STT -> optional time-boxed cleanup -> output routing -> history.
@@ -10,6 +11,7 @@ final class DictationPipeline: ObservableObject {
     private let output = OutputRouter()
     private var levelCancellable: AnyCancellable?
     private var busy = false
+    private var pasteTargetPID: pid_t?
 
     var onStateChange: ((PillState) -> Void)?
 
@@ -24,6 +26,7 @@ final class DictationPipeline: ObservableObject {
 
     func recordStart() {
         guard !busy else { return }
+        pasteTargetPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         NSLog("Whisper: recordStart")
         recorder.prewarm()
         recorder.start()
@@ -48,8 +51,9 @@ final class DictationPipeline: ObservableObject {
         onStateChange?(.processing)
 
         let settings = SettingsStore.shared.settings
+        let pasteTargetPID = pasteTargetPID
         Task.detached(priority: .userInitiated) { [weak self] in
-            await self?.process(wav: wav, settings: settings)
+            await self?.process(wav: wav, settings: settings, pasteTargetPID: pasteTargetPID)
             await MainActor.run {
                 self?.busy = false
                 self?.onStateChange?(.idle)
@@ -59,7 +63,7 @@ final class DictationPipeline: ObservableObject {
 
     // MARK: - Processing
 
-    private func process(wav: Data, settings: AppSettings) async {
+    private func process(wav: Data, settings: AppSettings, pasteTargetPID: pid_t?) async {
         // 1. Transcribe
         let raw: String
         do {
@@ -86,7 +90,17 @@ final class DictationPipeline: ObservableObject {
 
         // 4. Output on the main thread (pasteboard + CGEvent).
         let appName = await MainActor.run { () -> String? in
-            let name = self.output.frontmostAppName()
+            let target = pasteTargetPID.flatMap { NSRunningApplication(processIdentifier: $0) }
+            let name = target?.localizedName ?? self.output.frontmostAppName()
+            if let target, target.bundleIdentifier != Bundle.main.bundleIdentifier {
+                if let url = target.bundleURL {
+                    let config = NSWorkspace.OpenConfiguration()
+                    config.activates = true
+                    NSWorkspace.shared.openApplication(at: url, configuration: config)
+                } else {
+                    target.activate()
+                }
+            }
             self.output.deliver(text: finalText, mode: settings.outputMode, keepOnClipboard: settings.keepOnClipboardAfterPaste)
             return name
         }
