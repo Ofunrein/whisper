@@ -13,6 +13,9 @@ enum STTProviderKind: String, Codable, CaseIterable, Identifiable {
         }
     }
     var needsKey: Bool { self != .localWhisper }
+    var isLocal: Bool { self == .localWhisper }
+    var locationLabel: String { isLocal ? "Local" : "Cloud" }
+    var symbolName: String { isLocal ? "desktopcomputer" : "cloud" }
 }
 
 enum CleanupProviderKind: String, Codable, CaseIterable, Identifiable {
@@ -28,6 +31,9 @@ enum CleanupProviderKind: String, Codable, CaseIterable, Identifiable {
         }
     }
     var needsKey: Bool { self != .ollama }
+    var isLocal: Bool { self == .ollama }
+    var locationLabel: String { isLocal ? "Local" : "Cloud" }
+    var symbolName: String { isLocal ? "desktopcomputer" : "cloud" }
 }
 
 enum OutputMode: String, Codable, CaseIterable, Identifiable {

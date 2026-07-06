@@ -106,6 +106,21 @@ private struct APIKeysTab: View {
 
 // MARK: - Providers
 
+private struct ProviderBadge: View {
+    let isLocal: Bool
+
+    var body: some View {
+        Label(isLocal ? "Local" : "Cloud", systemImage: isLocal ? "desktopcomputer" : "cloud")
+            .font(.caption)
+            .foregroundStyle(isLocal ? .green : .blue)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background((isLocal ? Color.green : Color.blue).opacity(0.12))
+            .clipShape(Capsule())
+    }
+}
+
+
 private struct ProvidersTab: View {
     @ObservedObject var store: SettingsStore
 
@@ -124,14 +139,21 @@ private struct ProvidersTab: View {
 
             GroupBox("Speech-to-Text") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("STT Provider", selection: $store.settings.sttProvider) {
-                        ForEach(STTProviderKind.allCases) { kind in
-                            Text(kind.displayName).tag(kind)
+                    HStack {
+                        Picker("STT Provider", selection: $store.settings.sttProvider) {
+                            ForEach(STTProviderKind.allCases) { kind in
+                                Label(kind.displayName, systemImage: kind.symbolName).tag(kind)
+                            }
                         }
+                        ProviderBadge(isLocal: store.settings.sttProvider.isLocal)
                     }
                     if store.settings.sttProvider == .localWhisper {
                         Divider()
                         LocalWhisperSettings(store: store)
+                    } else {
+                        Text("Cloud STT uses external API billing.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(8)
@@ -139,12 +161,18 @@ private struct ProvidersTab: View {
 
             GroupBox("Cleanup Provider") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("Cleanup Provider", selection: $store.settings.cleanupProvider) {
-                        ForEach(CleanupProviderKind.allCases) { kind in
-                            Text(kind.displayName).tag(kind)
+                    HStack {
+                        Picker("Cleanup Provider", selection: $store.settings.cleanupProvider) {
+                            ForEach(CleanupProviderKind.allCases) { kind in
+                                Label(kind.displayName, systemImage: kind.symbolName).tag(kind)
+                            }
                         }
+                        ProviderBadge(isLocal: store.settings.cleanupProvider.isLocal)
                     }
                     Divider()
+                    Text(store.settings.cleanupProvider.isLocal ? "Local cleanup runs through Ollama." : "Cloud cleanup uses external API billing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Text("Model overrides").font(.caption).foregroundStyle(.secondary)
                     ModelPicker(label: "Gemini model", provider: .gemini, selection: $store.settings.geminiModel)
                     ModelPicker(label: "Groq cleanup model", provider: .groq, selection: $store.settings.groqCleanupModel)
