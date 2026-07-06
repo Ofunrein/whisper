@@ -1,47 +1,81 @@
-# Whisper
+# Whisperer
 
-Native macOS dictation app: hold a hotkey, speak, release — your words are transcribed, cleaned up, and pasted at your cursor in any app. A Wispr Flow / SuperWhisper-style tool built for speed.
+Native macOS dictation app. Hold a hotkey, speak, release, then Whisperer transcribes, optionally cleans up, and pastes at your cursor in any app.
 
-## Build & run
+## Install
+
+Download the latest macOS build from GitHub Releases.
+
+If macOS blocks first launch because the app is not notarized yet, right-click `Whisperer.app`, choose Open, then approve the prompt.
+
+## Build locally
 
 ```bash
 ./scripts/make-app.sh
-open build/Whisper.app
+open /Applications/Whisperer.app
 ```
 
-Requires macOS 14+ and Xcode command line tools. On first launch, grant:
+Requires macOS 14+ and Xcode command line tools.
 
-- **Microphone** — System Settings → Privacy & Security → Microphone
-- **Accessibility** — System Settings → Privacy & Security → Accessibility (needed for the global hotkey and paste)
+On first launch, grant:
 
-Whisper only asks once per install; if permissions are missing after that it stays silent (check the menu bar / Settings yourself) instead of nagging on every launch.
+- Microphone: System Settings > Privacy & Security > Microphone
+- Accessibility: System Settings > Privacy & Security > Accessibility
 
-> Note: `make-app.sh` ad-hoc signs the app (no paid Apple Developer certificate). Ad-hoc signatures change every time the binary is rebuilt, so macOS can treat a rebuilt app as "new" and reset its Accessibility grant. If Whisper stops responding to the hotkey after a rebuild, re-check System Settings → Accessibility — you may need to re-toggle it once for that build. This goes away permanently if the app is signed with a real Developer ID.
+`make-app.sh` installs `/Applications/Whisperer.app` and asks LaunchServices, Spotlight, and Raycast to index the installed app.
 
 ## Use
 
-1. Open Settings from the menu bar icon and paste an API key for your chosen providers (stored in the Keychain).
-2. Hold **Fn** (default), speak, release. The pill at the bottom of the screen shows a live waveform while recording.
-3. Text is pasted wherever your cursor is.
+1. Open Whisperer from Raycast, Spotlight, Finder, or `/Applications`.
+2. Add provider keys in Settings.
+3. Place the cursor in any text field.
+4. Hold the configured recording shortcut, speak, then release.
+5. Whisperer pastes the transcript at the cursor.
+
+Default shortcuts:
+
+- Right Command hold
+- Right-click hold
+
+Quick right-clicks pass through to normal context menus. Rapid double right-click does not start recording.
 
 ## Providers
 
 | Stage | Options | Default |
 |---|---|---|
-| Speech-to-text | Groq (whisper-large-v3-turbo), ElevenLabs Scribe v2, Deepgram Nova-3, OpenAI, local whisper.cpp | Groq |
-| Cleanup | Groq, Cerebras, Gemini Flash, Ollama (local), OpenAI | Groq |
+| Speech-to-text | Groq Whisper, ElevenLabs Scribe, Deepgram Nova, OpenAI, local whisper.cpp | Groq |
+| Cleanup | Groq, Cerebras, Gemini, Ollama, OpenAI | Groq |
 
-Cleanup is optional (menu bar toggle) and time-boxed — if it fails, times out, or has no key, the raw transcript is pasted instead. The cleanup system instruction is editable in Settings.
+Cleanup is optional. If cleanup fails, times out, or has no key, Whisperer pastes the raw transcript instead.
 
-Local mode: `brew install whisper-cpp`, download a ggml model to `~/Library/Application Support/Whisper/models/`, and pick "Local whisper.cpp" + Ollama in Settings for fully offline dictation.
+Local mode: install `whisper-cpp`, download a ggml model to `~/Library/Application Support/Whisper/models/`, then pick local whisper.cpp plus Ollama in Settings.
 
 ## Features
 
-- Configurable hotkeys: Fn key, any key combo, or mouse buttons (middle, Mouse 4-10), hold or toggle.
-- Output modes: paste at cursor (clipboard restored), copy only, paste and keep on clipboard.
-- Movable pill indicator that avoids the Dock and remembers its position.
-- History window with a raw/cleaned toggle; optional audio saving.
-- Keys live only in the macOS Keychain.
+- Hold-to-record hotkeys for keyboard and mouse buttons.
+- Auto-paste at cursor with clipboard restore.
+- Copy-only and paste-keep-on-clipboard output modes.
+- Movable snapping pill indicator with waveform.
+- History window with raw and cleaned text.
+- Optional audio saving and retention pruning.
+- Provider keys stored locally at `~/Library/Application Support/Whisper/secrets.json` with user-only file permissions.
+
+## Release artifacts
+
+Do not commit `.app`, `.zip`, or `.dmg` release artifacts into the repo. Build them locally, then upload them as GitHub Release assets.
+
+Useful commands:
+
+```bash
+./scripts/make-app.sh
+mkdir -p dist
+ditto -c -k --keepParent build/Whisperer.app dist/Whisperer-0.1.0-macOS.zip
+mkdir -p dist/dmg-root
+rm -rf dist/dmg-root/*
+cp -R build/Whisperer.app dist/dmg-root/
+ln -s /Applications dist/dmg-root/Applications
+hdiutil create -volname Whisperer -srcfolder dist/dmg-root -ov -format UDZO dist/Whisperer-0.1.0-macOS.dmg
+```
 
 ## Tests
 
