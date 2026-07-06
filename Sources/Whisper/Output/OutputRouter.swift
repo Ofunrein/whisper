@@ -4,18 +4,21 @@ import CoreGraphics
 
 /// Delivers transcribed text: paste at cursor, copy only, or paste and keep.
 final class OutputRouter {
-    private let pasteDelay: TimeInterval = 0.45
-    private let keyHoldDelay: TimeInterval = 0.08
-    private let restoreDelay: TimeInterval = 0.6
-    private let vKeyCode: CGKeyCode = 9 // v
+    private let pasteDelay: TimeInterval = 0.75
+    private let keyHoldDelay: TimeInterval = 0.06
+    private let restoreDelay: TimeInterval = 0.8
+    private let commandKeyCode: CGKeyCode = 55
+    private let vKeyCode: CGKeyCode = 9
 
     private static var history: [[(NSPasteboard.PasteboardType, Data)]] = []
     private static let maxHistory = 5
 
     func deliver(text: String, mode: OutputMode, keepOnClipboard: Bool, targetPID: pid_t? = nil) {
+        logPaste("deliver mode=\(mode.rawValue) target=\(targetPID.map(String.init) ?? "nil") bytes=\(text.utf8.count)")
         switch mode {
         case .copyOnly:
             setClipboard(text)
+            logPaste("copyOnly clipboard set")
         case .pasteAndKeep:
             setClipboard(text)
             pasteAfterClipboardSettles(text: text, targetPID: targetPID)
@@ -28,6 +31,7 @@ final class OutputRouter {
             guard !keepOnClipboard else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay + restoreDelay) {
                 self.restoreClipboard(saved)
+                self.logPaste("clipboard restored")
             }
         }
     }
@@ -80,23 +84,21 @@ final class OutputRouter {
         activateTarget(targetPID)
         DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay) {
             self.activateTarget(targetPID)
-            self.pasteViaCommandV(text: text, targetPID: targetPID)
+            self.pasteViaCommandV(targetPID: targetPID)
         }
     }
 
-    private func pasteViaCommandV(text: String, targetPID: pid_t?) {
+    private func pasteViaCommandV(targetPID: pid_t?) {
         guard AXIsProcessTrusted() else {
+            logPaste("blocked: Accessibility permission missing")
             NSLog("Whisper: Accessibility permission missing; cannot auto-paste")
             return
         }
 
-        // Do not use AX selected-text insertion as a primary paste path. Some apps
-        // report success for kAXSelectedTextAttribute without inserting into the
-        // actual text field, which leaves the user with only clipboard text and no
-        // auto-paste. Match manual paste exactly: activate target, then send
-        // Command-V through the HID event tap.
-        postCommandVToHID()
-        NSLog("Whisper: auto-paste sent Command-V to frontmost app")
+        let front = NSWorkspace.shared.frontmostApplication
+        logPaste("posting explicit command-v front=\(front?.localizedName ?? "nil") frontPID=\(front?.processIdentifier.description ?? "nil") target=\(targetPID.map(String.init) ?? "nil")")
+        postExplicitCommandV()
+        NSLog("Whisper: auto-paste sent explicit Command-V chord")
     }
 
     private func activateTarget(_ targetPID: pid_t?) {
@@ -105,19 +107,44 @@ final class OutputRouter {
               let target = NSRunningApplication(processIdentifier: targetPID),
               target.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
         target.activate(options: [.activateIgnoringOtherApps])
+        logPaste("activate target=\(target.localizedName ?? "nil") pid=\(targetPID)")
     }
 
-    private func postCommandVToHID() {
+    private func postExplicitCommandV() {
         let source = CGEventSource(stateID: .hidSystemState)
             ?? CGEventSource(stateID: .combinedSessionState)
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false) else { return }
+        guard let commandDown = CGEvent(keyboardEventSource: source, virtualKey: commandKeyCode, keyDown: true),
+              let vDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true),
+              let vUp = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false),
+              let commandUp = CGEvent(keyboardEventSource: source, virtualKey: commandKeyCode, keyDown: false) else {
+            logPaste("failed: could not create CGEvents")
+            return
+        }
 
-        down.flags = .maskCommand
-        up.flags = .maskCommand
-        down.post(tap: .cghidEventTap)
-        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) {
-            up.post(tap: .cghidEventTap)
+        commandDown.flags = .maskCommand
+        vDown.flags = .maskCommand
+        vUp.flags = .maskCommand
+        commandUp.flags = []
+
+        commandDown.post(tap: .cghidEventTap)
+        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) { vDown.post(tap: .cghidEventTap) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay * 2) { vUp.post(tap: .cghidEventTap) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay * 3) { commandUp.post(tap: .cghidEventTap) }
+    }
+
+    private func logPaste(_ message: String) {
+        let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
+        guard let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Whisper", isDirectory: true) else { return }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("paste-debug.log")
+        if let data = line.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: url.path), let handle = try? FileHandle(forWritingTo: url) {
+                try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: url, options: .atomic)
+            }
         }
     }
 }
