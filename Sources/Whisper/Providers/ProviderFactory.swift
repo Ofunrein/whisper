@@ -12,7 +12,7 @@ enum ProviderFactory {
         case .openAI:
             return OpenAITranscriber()
         case .localWhisper:
-            return LocalWhisperTranscriber()
+            return LocalWhisperTranscriber(modelPath: settings.localWhisperModelPath)
         }
     }
 

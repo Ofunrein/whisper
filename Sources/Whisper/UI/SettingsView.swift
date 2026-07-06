@@ -123,9 +123,15 @@ private struct ProvidersTab: View {
             }
 
             GroupBox("Speech-to-Text") {
-                Picker("STT Provider", selection: $store.settings.sttProvider) {
-                    ForEach(STTProviderKind.allCases) { kind in
-                        Text(kind.displayName).tag(kind)
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("STT Provider", selection: $store.settings.sttProvider) {
+                        ForEach(STTProviderKind.allCases) { kind in
+                            Text(kind.displayName).tag(kind)
+                        }
+                    }
+                    if store.settings.sttProvider == .localWhisper {
+                        Divider()
+                        LocalWhisperSettings(store: store)
                     }
                 }
                 .padding(8)
@@ -164,6 +170,109 @@ private struct ProvidersTab: View {
             }
         }
         .padding(.top, 8)
+    }
+}
+
+
+private struct LocalWhisperSettings: View {
+    @ObservedObject var store: SettingsStore
+    @State private var downloadingID: String?
+    @State private var downloadStatus = ""
+
+    private var installedModels: [String] { LocalWhisperTranscriber.installedModels() }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Local whisper.cpp")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                TextField("Model path", text: $store.settings.localWhisperModelPath)
+                    .textFieldStyle(.roundedBorder)
+                Button("Browse") { chooseModel() }
+                Button("Folder") { openModelsFolder() }
+            }
+
+            if !installedModels.isEmpty {
+                Picker("Installed", selection: $store.settings.localWhisperModelPath) {
+                    ForEach(installedModels, id: \.self) { path in
+                        Text(URL(fileURLWithPath: path).lastPathComponent).tag(path)
+                    }
+                }
+            }
+
+            Divider()
+            Text("Download local models")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(LocalWhisperTranscriber.downloadableModels) { model in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.label)
+                            Text("\(model.filename) · \(model.size)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if FileManager.default.fileExists(atPath: model.localURL.path) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Button("Use") { store.settings.localWhisperModelPath = model.localURL.path }
+                        } else if downloadingID == model.id {
+                            ProgressView().controlSize(.small)
+                            Text(downloadStatus).font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Button("Download") { download(model) }
+                        }
+                    }
+                }
+            }
+
+            Text("Install binary once: brew install whisper-cpp")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func chooseModel() {
+        LocalWhisperTranscriber.ensureModelDirectory()
+        let panel = NSOpenPanel()
+        panel.title = "Choose local Whisper model"
+        panel.allowedContentTypes = [.data]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.directoryURL = LocalWhisperTranscriber.modelDirectory
+        if panel.runModal() == .OK, let url = panel.url {
+            store.settings.localWhisperModelPath = url.path
+        }
+    }
+
+    private func openModelsFolder() {
+        LocalWhisperTranscriber.ensureModelDirectory()
+        NSWorkspace.shared.open(LocalWhisperTranscriber.modelDirectory)
+    }
+
+    private func download(_ model: LocalWhisperModel) {
+        downloadingID = model.id
+        downloadStatus = model.size
+        Task {
+            do {
+                let local = try await LocalWhisperDownloader.download(model)
+                await MainActor.run {
+                    store.settings.localWhisperModelPath = local.path
+                    downloadingID = nil
+                    downloadStatus = ""
+                }
+            } catch {
+                await MainActor.run {
+                    downloadingID = nil
+                    downloadStatus = "Failed"
+                }
+            }
+        }
     }
 }
 

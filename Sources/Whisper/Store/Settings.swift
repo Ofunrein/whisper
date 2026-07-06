@@ -218,6 +218,9 @@ struct AppSettings: Codable, Equatable {
     static let defaultOpenAICleanupModel = "gpt-4o-mini"
     static let defaultOllamaModel = "llama3.2"
     static let defaultOllamaBaseURL = "http://localhost:11434"
+    static let defaultLocalWhisperModelPath = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/Whisper/models/ggml-base.en.bin")
+        .path
 
     var sttProvider: STTProviderKind = .groq
     var cleanupProvider: CleanupProviderKind = .groq
@@ -238,6 +241,7 @@ struct AppSettings: Codable, Equatable {
     var openAICleanupModel: String = defaultOpenAICleanupModel
     var ollamaModel: String = defaultOllamaModel
     var ollamaBaseURL: String = defaultOllamaBaseURL
+    var localWhisperModelPath: String = defaultLocalWhisperModelPath
     var pillPlacement: PillPlacement = .bottomCenter
     var pillPositionX: Double? = nil
     var pillPositionY: Double? = nil

@@ -96,6 +96,26 @@ final class PipelineTests: XCTestCase {
         XCTAssertEqual(back, s)
     }
 
+
+
+    func testLocalWhisperModelCatalogHasDownloadURLs() {
+        let models = LocalWhisperTranscriber.downloadableModels
+        XCTAssertFalse(models.isEmpty)
+        XCTAssertTrue(models.contains { $0.filename == "ggml-base.en.bin" })
+        XCTAssertTrue(models.allSatisfy { $0.url.absoluteString.contains("huggingface.co/ggerganov/whisper.cpp") })
+    }
+
+    func testLocalWhisperModelPathRoundTripAndFactory() throws {
+        var s = AppSettings()
+        s.sttProvider = .localWhisper
+        s.localWhisperModelPath = "/tmp/ggml-test.bin"
+        let data = try JSONEncoder().encode(s)
+        let back = try JSONDecoder().decode(AppSettings.self, from: data)
+        XCTAssertEqual(back.localWhisperModelPath, "/tmp/ggml-test.bin")
+        let transcriber = ProviderFactory.transcriber(for: back) as? LocalWhisperTranscriber
+        XCTAssertEqual(transcriber?.modelPath, "/tmp/ggml-test.bin")
+    }
+
     func testDefaultCleanupInstructionsVerbatim() {
         XCTAssertTrue(defaultCleanupInstructions.hasPrefix("You clean up raw speech-to-text transcripts"))
         XCTAssertTrue(defaultCleanupInstructions.contains("If something is ambiguous or clearly misheard, leave it as-is rather than guessing."))

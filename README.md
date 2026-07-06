@@ -48,7 +48,7 @@ Quick right-clicks pass through to normal context menus. Rapid double right-clic
 
 Cleanup is optional. If cleanup fails, times out, or has no key, Whisperer pastes the raw transcript instead.
 
-Local mode: install `whisper-cpp`, download a ggml model to `~/Library/Application Support/Whisper/models/`, then pick local whisper.cpp plus Ollama in Settings.
+Local mode: install `whisper-cpp`, put any ggml model in `~/Library/Application Support/Whisper/models/`, then pick local whisper.cpp in Settings. The app can browse, remember, and switch local model paths. Pick Ollama separately for local cleanup.
 
 ## Features
 
