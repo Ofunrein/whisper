@@ -128,11 +128,9 @@ struct VocabularyEntry: Codable, Equatable, Identifiable {
 }
 
 let defaultVocabulary: [VocabularyEntry] = [
-    VocabularyEntry(from: "Ohireme"),
-    VocabularyEntry(from: "Ofunrein"),
-    VocabularyEntry(from: "Lumenosis"),
     VocabularyEntry(from: "Claude"),
     VocabularyEntry(from: "Anthropic"),
+    VocabularyEntry(from: "OpenAI"),
     VocabularyEntry(from: "cmux"),
     VocabularyEntry(from: "Superwhisper"),
     VocabularyEntry(from: "Groq"),
@@ -141,11 +139,6 @@ let defaultVocabulary: [VocabularyEntry] = [
     VocabularyEntry(from: "Xcode"),
     VocabularyEntry(from: "SwiftUI"),
     VocabularyEntry(from: "AVAudioEngine"),
-    VocabularyEntry(from: "O Hi Re Me", to: "Ohireme"),
-    VocabularyEntry(from: "O Hire Me", to: "Ohireme"),
-    VocabularyEntry(from: "O Here Me", to: "Ohireme"),
-    VocabularyEntry(from: "OJ", to: "Oje"),
-    VocabularyEntry(from: "Aima", to: "Aiah"),
 ]
 
 /// SuperWhisper-style pill snap grid: five slots per edge plus center.
