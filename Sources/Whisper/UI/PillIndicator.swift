@@ -150,30 +150,58 @@ final class PillController: NSObject {
     /// Origin for a preset placement on the screen containing the pill.
     private func presetOrigin(for placement: PillPlacement, size: NSSize) -> NSPoint? {
         let visible = screenContaining(panel.frame).visibleFrame
-        let margin: CGFloat = 24
         switch placement {
-        case .bottomCenter: return NSPoint(x: visible.midX - size.width / 2, y: visible.minY + margin)
-        case .bottomLeft:   return NSPoint(x: visible.minX + margin, y: visible.minY + margin)
-        case .bottomRight:  return NSPoint(x: visible.maxX - size.width - margin, y: visible.minY + margin)
-        case .topCenter:    return NSPoint(x: visible.midX - size.width / 2, y: visible.maxY - size.height - margin)
-        case .topLeft:      return NSPoint(x: visible.minX + margin, y: visible.maxY - size.height - margin)
-        case .topRight:     return NSPoint(x: visible.maxX - size.width - margin, y: visible.maxY - size.height - margin)
-        case .middleLeft:   return NSPoint(x: visible.minX + margin, y: visible.midY - size.height / 2)
-        case .middleRight:  return NSPoint(x: visible.maxX - size.width - margin, y: visible.midY - size.height / 2)
         case .custom:
             let s = SettingsStore.shared.settings
             guard let x = s.pillPositionX, let y = s.pillPositionY else { return nil }
             return NSPoint(x: x, y: y)
+        default:
+            return origin(for: placement, size: size, in: visible)
         }
+    }
+
+    private func origin(for placement: PillPlacement, size: NSSize, in visible: NSRect) -> NSPoint {
+        let margin: CGFloat = 24
+        let minCenterX = visible.minX + margin + size.width / 2
+        let maxCenterX = visible.maxX - margin - size.width / 2
+        let minCenterY = visible.minY + margin + size.height / 2
+        let maxCenterY = visible.maxY - margin - size.height / 2
+
+        let x25 = visible.minX + visible.width * 0.25
+        let x50 = visible.midX
+        let x75 = visible.minX + visible.width * 0.75
+        let y25 = visible.minY + visible.height * 0.25
+        let y50 = visible.midY
+        let y75 = visible.minY + visible.height * 0.75
+
+        let center: NSPoint
+        switch placement {
+        case .bottomLeft: center = NSPoint(x: minCenterX, y: minCenterY)
+        case .bottomQuarter: center = NSPoint(x: x25, y: minCenterY)
+        case .bottomCenter: center = NSPoint(x: x50, y: minCenterY)
+        case .bottomThreeQuarter: center = NSPoint(x: x75, y: minCenterY)
+        case .bottomRight: center = NSPoint(x: maxCenterX, y: minCenterY)
+        case .leftLower: center = NSPoint(x: minCenterX, y: y25)
+        case .middleLeft: center = NSPoint(x: minCenterX, y: y50)
+        case .leftUpper: center = NSPoint(x: minCenterX, y: y75)
+        case .center: center = NSPoint(x: x50, y: y50)
+        case .rightLower: center = NSPoint(x: maxCenterX, y: y25)
+        case .middleRight: center = NSPoint(x: maxCenterX, y: y50)
+        case .rightUpper: center = NSPoint(x: maxCenterX, y: y75)
+        case .topLeft: center = NSPoint(x: minCenterX, y: maxCenterY)
+        case .topQuarter: center = NSPoint(x: x25, y: maxCenterY)
+        case .topCenter: center = NSPoint(x: x50, y: maxCenterY)
+        case .topThreeQuarter: center = NSPoint(x: x75, y: maxCenterY)
+        case .topRight: center = NSPoint(x: maxCenterX, y: maxCenterY)
+        case .custom: center = NSPoint(x: x50, y: y50)
+        }
+
+        return NSPoint(x: center.x - size.width / 2, y: center.y - size.height / 2)
     }
 
     /// Apply a preset placement (or restore the custom drag position).
     /// Animated by default (Settings picker, live snap); pass animated:false
-    /// for the initial launch placement so the move applies synchronously —
-    /// an animated move here would still be mid-flight when the immediately
-    /// following avoidDockAndBounds() reads panel.frame, and its stale
-    /// pre-animation origin would win the race and clamp the pill back to
-    /// a screen corner instead of the restored position.
+    /// for the initial launch placement so the move applies synchronously.
     func applyPlacement(_ placement: PillPlacement, animated: Bool = true) {
         guard let origin = presetOrigin(for: placement, size: panel.frame.size) else { return }
         guard animated else {
@@ -182,15 +210,16 @@ final class PillController: NSObject {
         }
         programmaticMove = true
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.2
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().setFrameOrigin(origin)
         }, completionHandler: { [weak self] in
             self?.programmaticMove = false
         })
     }
 
-    /// SuperWhisper-style snap: after a drag settles, magnet to the nearest
-    /// edge or corner zone. Drops in the center stay custom.
+    /// SuperWhisper-style snap grid observed in the reference video: 5 columns by
+    /// 5 rows around the perimeter, plus a center slot.
     private func snapToNearestPlacement() {
         let frame = panel.frame
         let visible = screenContaining(frame).visibleFrame
@@ -209,31 +238,29 @@ final class PillController: NSObject {
     }
 
     private func magneticPlacement(for frame: NSRect, in visible: NSRect) -> PillPlacement? {
-        let band = max(CGFloat(110), min(visible.width, visible.height) * 0.10)
-        let centerBand = max(CGFloat(140), visible.width * 0.12)
+        let size = frame.size
+        let snapRadius = max(CGFloat(170), min(visible.width, visible.height) * 0.16)
+        let ringBand = max(CGFloat(150), min(visible.width, visible.height) * 0.12)
+        let center = NSPoint(x: frame.midX, y: frame.midY)
+        let inOuterRing = min(
+            abs(frame.minX - visible.minX),
+            abs(visible.maxX - frame.maxX),
+            abs(frame.minY - visible.minY),
+            abs(visible.maxY - frame.maxY)
+        ) <= ringBand
 
-        let nearLeft = frame.minX - visible.minX <= band
-        let nearRight = visible.maxX - frame.maxX <= band
-        let nearBottom = frame.minY - visible.minY <= band
-        let nearTop = visible.maxY - frame.maxY <= band
-        let nearCenterX = abs(frame.midX - visible.midX) <= centerBand
-
-        if nearTop {
-            if nearLeft { return .topLeft }
-            if nearRight { return .topRight }
-            if nearCenterX { return .topCenter }
+        var best: (placement: PillPlacement, distance: CGFloat)?
+        for placement in PillPlacement.allCases where placement != .custom {
+            let target = origin(for: placement, size: size, in: visible)
+            let targetCenter = NSPoint(x: target.x + size.width / 2, y: target.y + size.height / 2)
+            let distance = hypot(center.x - targetCenter.x, center.y - targetCenter.y)
+            if distance < (best?.distance ?? .greatestFiniteMagnitude) {
+                best = (placement, distance)
+            }
         }
 
-        if nearBottom {
-            if nearLeft { return .bottomLeft }
-            if nearRight { return .bottomRight }
-            if nearCenterX { return .bottomCenter }
-        }
-
-        if nearLeft { return .middleLeft }
-        if nearRight { return .middleRight }
-
-        return nil
+        guard let best else { return nil }
+        return (best.distance <= snapRadius || inOuterRing) ? best.placement : nil
     }
 
     func setLevel(_ f: Float) {

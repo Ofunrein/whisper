@@ -148,29 +148,41 @@ let defaultVocabulary: [VocabularyEntry] = [
     VocabularyEntry(from: "Aima", to: "Aiah"),
 ]
 
-/// SuperWhisper-style pill placements along the screen edges, plus a
-/// free-form custom position set by dragging.
+/// SuperWhisper-style pill snap grid: five slots per edge plus center.
+/// Free-form custom position remains available when dropped away from slots.
 enum PillPlacement: String, Codable, CaseIterable, Identifiable {
-    case bottomCenter, bottomLeft, bottomRight
-    case topCenter, topLeft, topRight
-    case middleLeft, middleRight
+    case bottomLeft, bottomQuarter, bottomCenter, bottomThreeQuarter, bottomRight
+    case leftLower, middleLeft, leftUpper
+    case center
+    case rightLower, middleRight, rightUpper
+    case topLeft, topQuarter, topCenter, topThreeQuarter, topRight
     case custom
+
     var id: String { rawValue }
+
     var displayName: String {
         switch self {
-        case .bottomCenter: return "Bottom Center"
         case .bottomLeft: return "Bottom Left"
+        case .bottomQuarter: return "Bottom Quarter"
+        case .bottomCenter: return "Bottom Center"
+        case .bottomThreeQuarter: return "Bottom Three Quarter"
         case .bottomRight: return "Bottom Right"
-        case .topCenter: return "Top Center"
-        case .topLeft: return "Top Left"
-        case .topRight: return "Top Right"
+        case .leftLower: return "Left Lower"
         case .middleLeft: return "Middle Left"
+        case .leftUpper: return "Left Upper"
+        case .center: return "Center"
+        case .rightLower: return "Right Lower"
         case .middleRight: return "Middle Right"
-        case .custom: return "Custom (drag the pill)"
+        case .rightUpper: return "Right Upper"
+        case .topLeft: return "Top Left"
+        case .topQuarter: return "Top Quarter"
+        case .topCenter: return "Top Center"
+        case .topThreeQuarter: return "Top Three Quarter"
+        case .topRight: return "Top Right"
+        case .custom: return "Custom (drag pill)"
         }
     }
 }
-
 /// A configurable binding: either the Fn key, a key combo, a mouse button,
 /// or a held secondary (right) click.
 struct HotkeyBinding: Codable, Equatable {

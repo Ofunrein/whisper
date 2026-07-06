@@ -101,7 +101,7 @@ final class DictationPipeline: ObservableObject {
                     target.activate()
                 }
             }
-            self.output.deliver(text: finalText, mode: settings.outputMode, keepOnClipboard: settings.keepOnClipboardAfterPaste)
+            self.output.deliver(text: finalText, mode: settings.outputMode, keepOnClipboard: settings.keepOnClipboardAfterPaste, targetPID: pasteTargetPID)
             return name
         }
 

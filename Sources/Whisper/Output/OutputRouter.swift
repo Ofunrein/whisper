@@ -2,34 +2,29 @@ import Foundation
 import AppKit
 import CoreGraphics
 
-/// Delivers transcribed text to the user: paste at cursor (with clipboard
-/// restore), copy only, or paste and keep.
+/// Delivers transcribed text to the user: paste at cursor, copy only, or paste and keep.
 final class OutputRouter {
     private let pasteDelay: TimeInterval = 0.35
     private let keyHoldDelay: TimeInterval = 0.04
     private let restoreDelay: TimeInterval = 0.3
     private let vKeyCode: CGKeyCode = 9 // "v"
 
-    /// Clipboard snapshots from before each paste, most recent last. A
-    /// dedicated Cmd+Shift+Z hotkey (ClipboardRestoreMonitor) pops these back
-    /// onto the pasteboard — a safety net if a dictation paste overwrote
-    /// something the user still needed, without touching the system Cmd+Z.
     private static var history: [[(NSPasteboard.PasteboardType, Data)]] = []
     private static let maxHistory = 5
 
-    func deliver(text: String, mode: OutputMode, keepOnClipboard: Bool) {
+    func deliver(text: String, mode: OutputMode, keepOnClipboard: Bool, targetPID: pid_t? = nil) {
         switch mode {
         case .copyOnly:
             setClipboard(text)
         case .pasteAndKeep:
             setClipboard(text)
-            pasteAfterClipboardSettles()
+            pasteAfterClipboardSettles(text: text, targetPID: targetPID)
         case .pasteAtCursor:
             let saved = snapshotClipboard()
             Self.history.append(saved)
             if Self.history.count > Self.maxHistory { Self.history.removeFirst() }
             setClipboard(text)
-            pasteAfterClipboardSettles()
+            pasteAfterClipboardSettles(text: text, targetPID: targetPID)
             guard !keepOnClipboard else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay + restoreDelay) {
                 self.restoreClipboard(saved)
@@ -37,8 +32,6 @@ final class OutputRouter {
         }
     }
 
-    /// Pops the most recent pre-paste clipboard snapshot back onto the
-    /// pasteboard. Returns false if there's nothing to restore.
     static func restorePreviousClipboard() -> Bool {
         guard let last = history.popLast() else { return false }
         let pb = NSPasteboard.general
@@ -55,16 +48,12 @@ final class OutputRouter {
         NSWorkspace.shared.frontmostApplication?.localizedName
     }
 
-    // MARK: - Clipboard
-
     private func setClipboard(_ text: String) {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
     }
 
-    /// Best-effort snapshot of the current pasteboard: capture data for every
-    /// type currently present so we can put it back afterward.
     private func snapshotClipboard() -> [(NSPasteboard.PasteboardType, Data)] {
         let pb = NSPasteboard.general
         guard let types = pb.types else { return [] }
@@ -87,17 +76,20 @@ final class OutputRouter {
         }
     }
 
-    // MARK: - Paste synthesis
-
-    private func pasteAfterClipboardSettles() {
+    private func pasteAfterClipboardSettles(text: String, targetPID: pid_t?) {
         DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay) {
-            self.pasteViaCommandV()
+            self.pasteViaCommandV(text: text, targetPID: targetPID)
         }
     }
 
-    private func pasteViaCommandV() {
+    private func pasteViaCommandV(text: String, targetPID: pid_t?) {
         guard AXIsProcessTrusted() else {
             NSLog("Whisper: Accessibility permission missing; cannot auto-paste")
+            return
+        }
+
+        if insertFocusedTextViaAccessibility(text) {
+            NSLog("Whisper: auto-paste inserted via AX selected text")
             return
         }
 
@@ -108,9 +100,28 @@ final class OutputRouter {
 
         down.flags = .maskCommand
         up.flags = .maskCommand
-        down.post(tap: .cghidEventTap)
+        post(down, targetPID: targetPID)
         DispatchQueue.main.asyncAfter(deadline: .now() + keyHoldDelay) {
-            up.post(tap: .cghidEventTap)
+            self.post(up, targetPID: targetPID)
+        }
+    }
+
+    private func insertFocusedTextViaAccessibility(_ text: String) -> Bool {
+        let system = AXUIElementCreateSystemWide()
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+              let focused else { return false }
+
+        let element = focused as! AXUIElement
+        let selectedStatus = AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, text as CFString)
+        return selectedStatus == .success
+    }
+
+    private func post(_ event: CGEvent, targetPID: pid_t?) {
+        if let targetPID, targetPID > 0 {
+            event.postToPid(targetPID)
+        } else {
+            event.post(tap: .cghidEventTap)
         }
     }
 }
