@@ -759,30 +759,35 @@ private struct HotkeyTab: View {
     }
 }
 
-/// Dropdown fed by the provider's live /models endpoint; falls back to a
-/// free-text field until the list loads (no key, offline, etc.). Current
-/// value is always selectable even if the provider no longer lists it.
+/// Dropdown fed by provider live /models endpoint plus fallback options.
 private struct ModelPicker: View {
     let label: String
     let provider: ModelCatalog.Provider
     @Binding var selection: String
     @ObservedObject private var catalog = ModelCatalog.shared
 
+    private var choices: [String] {
+        let live = catalog.models[provider] ?? []
+        let fallback = Self.fallbackModels[provider] ?? []
+        var seen = Set<String>()
+        return ([selection] + live + fallback)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { seen.insert($0).inserted }
+    }
+
     private var isPullingThis: Bool { catalog.pullingOllamaModel == selection }
 
     var body: some View {
         LabeledContent(label) {
             HStack {
-                if let list = catalog.models[provider], !list.isEmpty {
-                    Picker("", selection: $selection) {
-                        if !list.contains(selection) { Text(selection).tag(selection) }
-                        ForEach(list, id: \.self) { Text($0).tag($0) }
+                Picker("", selection: $selection) {
+                    ForEach(choices, id: \.self) { model in
+                        Text(model).tag(model)
                     }
-                    .labelsHidden()
-                    .frame(maxWidth: 320)
-                } else {
-                    TextField("", text: $selection).textFieldStyle(.roundedBorder)
                 }
+                .labelsHidden()
+                .frame(maxWidth: 420)
 
                 if provider == .ollama {
                     if catalog.isOllamaModelInstalled(selection) {
@@ -797,14 +802,57 @@ private struct ModelPicker: View {
                         ProgressView().controlSize(.small)
                         Text(catalog.pullProgress).font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Button("Download") {
-                            Task { await catalog.pullOllamaModel(selection) }
-                        }
-                        .disabled(catalog.pullingOllamaModel != nil || selection.isEmpty)
-                        .help("Not installed locally — pull it via Ollama before selecting")
+                        Button("Download") { Task { await catalog.pullOllamaModel(selection) } }
+                            .disabled(catalog.pullingOllamaModel != nil || selection.isEmpty)
+                            .help("Pull with local Ollama")
                     }
                 }
             }
         }
     }
+
+    private static let fallbackModels: [ModelCatalog.Provider: [String]] = [
+        .gemini: [
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-2.5-pro",
+        ],
+        .groq: [
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "qwen/qwen3-32b",
+            "moonshotai/kimi-k2-instruct",
+        ],
+        .cerebras: [
+            "qwen-3-32b",
+            "gpt-oss-120b",
+            "llama3.1-8b",
+            "llama-3.3-70b",
+            "qwen-3-235b-a22b-instruct-2507",
+        ],
+        .openAI: [
+            "gpt-4o-mini",
+            "gpt-4.1-mini",
+            "o4-mini",
+            "gpt-4o",
+            "gpt-4.1",
+        ],
+        .ollama: [
+            "llama3.2",
+            "llama3.2:1b",
+            "llama3.2:3b",
+            "llama3.1:8b",
+            "qwen2.5:3b",
+            "qwen2.5:7b",
+            "gemma3:1b",
+            "gemma3:4b",
+            "mistral:7b",
+            "phi3:mini",
+        ],
+    ]
 }
