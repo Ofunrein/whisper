@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Whisperer</string>
+    <string>Whisper</string>
     <key>CFBundleDisplayName</key>
-    <string>Whisperer</string>
+    <string>Whisper</string>
     <key>CFBundleIdentifier</key>
     <string>com.whisper.dictation</string>
     <key>CFBundleIconFile</key>

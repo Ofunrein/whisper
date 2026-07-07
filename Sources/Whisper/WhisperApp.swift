@@ -146,6 +146,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Migration: additively merge in vocabulary entries added after the
+        // one-time seed above already ran (e.g. name/email phonetic fixes
+        // shipped later) — only entries whose `from` isn't already present,
+        // so a user's own edits or removals are never overwritten.
+        if !UserDefaults.standard.bool(forKey: Self.hasMergedNameEmailVocabularyKey) {
+            UserDefaults.standard.set(true, forKey: Self.hasMergedNameEmailVocabularyKey)
+            let existing = Set(SettingsStore.shared.settings.vocabulary.map { $0.from.lowercased() })
+            let missing = defaultVocabulary.filter { !existing.contains($0.from.lowercased()) }
+            if !missing.isEmpty {
+                SettingsStore.shared.settings.vocabulary.append(contentsOf: missing)
+            }
+        }
+
+        // Migration: settings saved before the anti-refusal cleanup prompt
+        // was added still hold the old instructions verbatim (a saved value
+        // always wins over a changed code default). Upgrade it forward only
+        // on an exact match against the known old default, so a user's own
+        // customized instructions are never touched.
+        if SettingsStore.shared.settings.cleanupInstructions == legacyCleanupInstructionsV1 {
+            SettingsStore.shared.settings.cleanupInstructions = defaultCleanupInstructions
+        }
+
         // Warm the audio engine now: the first engine.start() costs ~1.7s
         // (HAL spin-up). Deferred to hotkey-press it swallows the opening
         // words of the first dictation.
@@ -209,6 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// again for something already granted or already declined.
     private static let hasPromptedKey = "whisper.hasPromptedForPermissionsOnce"
     private static let hasSeededVocabularyKey = "whisper.hasSeededVocabularyOnce"
+    private static let hasMergedNameEmailVocabularyKey = "whisper.hasMergedNameEmailVocabularyOnce"
 
     private func checkPermissions() {
         let micOK = Permissions.microphoneStatus() == .authorized

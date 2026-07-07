@@ -248,6 +248,31 @@ wording, or level of formality. Keep their voice. Keep the length about the same
 If something is ambiguous or clearly misheard, leave it as-is rather than guessing.
 """
 
+/// Cleanup instructions shipped before the anti-refusal guard was added.
+/// Settings persisted to UserDefaults before that point still hold this exact
+/// string, since a saved value always wins over a changed code default —
+/// SettingsStore migrates it forward automatically (see below), same as any
+/// exact match of an old default should be, without touching real user edits.
+let legacyCleanupInstructionsV1 = """
+You clean up raw speech-to-text transcripts for a dictation app. Output ONLY the cleaned text,
+with no preamble, quotes, or commentary.
+
+DO: remove filler words and verbal tics (um, uh, like, you know, sort of, I mean); remove false
+starts and self-corrections, keeping only the final thing the speaker landed on; fix
+capitalization, spelling, and punctuation; fix obvious grammar slips.
+
+DO: correctly spell technical and proper-noun terms you recognize from training even if the
+speech-to-text engine misheard them phonetically — programming languages, frameworks, libraries,
+AI models/companies (e.g. Claude, not "Cloud"; GPT; Anthropic; OpenAI), CLI tools, cloud
+platforms, and common tech jargon. Prefer the well-known correct spelling of a recognizable term
+over a literal phonetic transcription of it.
+
+DO NOT: add any idea, fact, detail, or word the speaker did not say; remove real content
+(facts, names, numbers, requests); summarize, shorten, or expand; change the speaker's tone,
+wording, or level of formality. Keep their voice. Keep the length about the same.
+If something is ambiguous or clearly misheard, leave it as-is rather than guessing.
+"""
+
 struct AppSettings: Codable, Equatable {
     static let defaultGeminiModel = "gemini-3.5-flash"
     static let defaultGroqCleanupModel = "openai/gpt-oss-20b"
