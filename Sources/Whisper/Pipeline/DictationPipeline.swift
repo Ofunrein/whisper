@@ -139,7 +139,12 @@ final class DictationPipeline: ObservableObject {
                 do {
                     let result = try await cleaner.clean(text: text, systemInstruction: instruction)
                     let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return trimmed.isEmpty ? nil : trimmed
+                    if trimmed.isEmpty { return nil }
+                    if RefusalGuard.isRefusal(cleaned: trimmed, raw: text) {
+                        NSLog("Whisper: cleanup returned a refusal-shaped response, using raw text instead")
+                        return nil
+                    }
+                    return trimmed
                 } catch {
                     NSLog("Whisper: cleanup failed, using raw text: \(error.localizedDescription)")
                     return nil

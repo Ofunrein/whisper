@@ -8,11 +8,25 @@ import Foundation
 enum VocabularyEngine {
     /// Appended to the cleanup system instruction so the model spells these
     /// terms correctly instead of guessing from the phonetic transcript.
+    /// Covers both plain vocabulary (spell-as-given) and replacement pairs
+    /// (the LLM cleanup step gets the same hint as the deterministic regex
+    /// pass below, so a misheard name is fixed even before regex runs).
     static func hint(for vocabulary: [VocabularyEntry]) -> String? {
         let plainTerms = vocabulary.filter { $0.to == nil }.map(\.from)
-        guard !plainTerms.isEmpty else { return nil }
-        return "\n\nKnown terms — spell these exactly as given whenever the speaker says something " +
-            "that sounds like one of them: " + plainTerms.joined(separator: ", ") + "."
+        let replacementTargets = Array(Set(vocabulary.compactMap(\.to))).sorted()
+        guard !plainTerms.isEmpty || !replacementTargets.isEmpty else { return nil }
+
+        var hint = ""
+        if !plainTerms.isEmpty {
+            hint += "\n\nKnown terms — spell these exactly as given whenever the speaker says something " +
+                "that sounds like one of them: " + plainTerms.joined(separator: ", ") + "."
+        }
+        if !replacementTargets.isEmpty {
+            hint += "\n\nThe speaker's name and contact details are sometimes misheard phonetically. " +
+                "If a word or phrase sounds like it's attempting one of these, use the correct form " +
+                "instead of a literal phonetic transcription: " + replacementTargets.joined(separator: ", ") + "."
+        }
+        return hint
     }
 
     /// Runs each from -> to replacement pair over the text, case-insensitive,
