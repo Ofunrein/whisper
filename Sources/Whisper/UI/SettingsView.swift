@@ -1,31 +1,80 @@
 import SwiftUI
 import AppKit
 
+/// Reports a tab's natural content height so the window can snap to it.
+/// macOS's SwiftUI TabView is inconsistent across versions about whether it
+/// lays out only the selected tab or all tabs at once — `reduce` takes the
+/// max, and each tab only reports its real height when selected (0
+/// otherwise), so the result is always the *selected* tab's height
+/// regardless of which layout behavior is actually happening under the hood.
+private struct TabHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct MeasuredTabContent<Content: View>: View {
+    let isSelected: Bool
+    @ViewBuilder let content: Content
+    var body: some View {
+        content.background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: TabHeightKey.self, value: isSelected ? proxy.size.height : 0)
+            }
+        )
+    }
+}
+
+private enum SettingsTab: Hashable {
+    case apiKeys, providers, cleanup, vocabulary, output, hotkey
+}
+
 struct SettingsView: View {
     @ObservedObject var store = SettingsStore.shared
+    @State private var selectedTab: SettingsTab = .apiKeys
+
+    /// Called with the currently-selected tab's ideal content height whenever
+    /// it changes (tab switch, or content within a tab growing/shrinking).
+    /// WindowPresenter uses this to snap the window to fit — so switching to
+    /// a short tab shrinks the window back down instead of staying stuck at
+    /// the tallest tab ever visited (a known SwiftUI TabView-on-macOS quirk).
+    var onIdealHeightChange: ((CGFloat) -> Void)?
 
     var body: some View {
-        TabView {
-            APIKeysTab()
+        TabView(selection: $selectedTab) {
+            MeasuredTabContent(isSelected: selectedTab == .apiKeys) { APIKeysTab() }
                 .tabItem { Label("API Keys", systemImage: "key.fill") }
+                .tag(SettingsTab.apiKeys)
 
-            ProvidersTab(store: store)
+            MeasuredTabContent(isSelected: selectedTab == .providers) { ProvidersTab(store: store) }
                 .tabItem { Label("Providers", systemImage: "cpu") }
+                .tag(SettingsTab.providers)
 
-            CleanupTab(store: store)
+            MeasuredTabContent(isSelected: selectedTab == .cleanup) { CleanupTab(store: store) }
                 .tabItem { Label("Cleanup", systemImage: "wand.and.stars") }
+                .tag(SettingsTab.cleanup)
 
-            VocabularyTab(store: store)
+            MeasuredTabContent(isSelected: selectedTab == .vocabulary) { VocabularyTab(store: store) }
                 .tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
+                .tag(SettingsTab.vocabulary)
 
-            OutputTab(store: store)
+            MeasuredTabContent(isSelected: selectedTab == .output) { OutputTab(store: store) }
                 .tabItem { Label("Output", systemImage: "square.and.arrow.up") }
+                .tag(SettingsTab.output)
 
-            HotkeyTab(store: store)
+            MeasuredTabContent(isSelected: selectedTab == .hotkey) { HotkeyTab(store: store) }
                 .tabItem { Label("Hotkey", systemImage: "keyboard") }
+                .tag(SettingsTab.hotkey)
         }
         .padding(20)
         .frame(width: 560)
+        .onPreferenceChange(TabHeightKey.self) { height in
+            // Add back the outer padding (20 top + 20 bottom) and an
+            // allowance for the tab bar chrome NSTabView draws above the
+            // content, neither of which the inner GeometryReader can see.
+            onIdealHeightChange?(height + 40 + 38)
+        }
         .onAppear { ModelCatalog.shared.refresh() }
     }
 }
@@ -375,24 +424,34 @@ private struct VocabularyTab: View {
                     if store.settings.vocabulary.isEmpty {
                         Text("No vocabulary entries yet").foregroundStyle(.secondary)
                     } else {
-                        ForEach(Array(store.settings.vocabulary.enumerated()), id: \.element.id) { index, entry in
-                            HStack {
-                                Text(entry.from)
-                                if let to = entry.to {
-                                    Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                                    Text(to)
-                                } else {
-                                    Text("(known term)").font(.caption).foregroundStyle(.secondary)
+                        // Scrolls internally with a capped height instead of
+                        // stacking every row full-height — otherwise this
+                        // list (already 26+ entries) would make the tab, and
+                        // therefore the window, grow without bound as more
+                        // vocabulary is added.
+                        ScrollView {
+                            LazyVStack(spacing: 6) {
+                                ForEach(Array(store.settings.vocabulary.enumerated()), id: \.element.id) { index, entry in
+                                    HStack {
+                                        Text(entry.from)
+                                        if let to = entry.to {
+                                            Image(systemName: "arrow.right").foregroundStyle(.secondary)
+                                            Text(to)
+                                        } else {
+                                            Text("(known term)").font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Button(role: .destructive) {
+                                            store.settings.vocabulary.remove(at: index)
+                                        } label: {
+                                            Image(systemName: "trash")
+                                        }
+                                        .buttonStyle(.borderless)
+                                    }
                                 }
-                                Spacer()
-                                Button(role: .destructive) {
-                                    store.settings.vocabulary.remove(at: index)
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .buttonStyle(.borderless)
                             }
                         }
+                        .frame(maxHeight: 260)
                     }
 
                     Divider()

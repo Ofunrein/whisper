@@ -17,11 +17,23 @@ cp -R Resources/Sounds "$APP/Contents/Resources/Sounds"
 # Stable local signing keeps macOS TCC Accessibility trust attached across
 # rebuilds. Ad-hoc signing changes cdhash every build, so the Accessibility
 # checkbox can look enabled while AXIsProcessTrusted() returns false.
+# Bounded with a timeout: a Keychain private-key-access prompt can silently
+# hang forever in a non-interactive/headless shell (no dialog ever appears
+# to answer), which previously stalled builds indefinitely. Fall back to
+# ad-hoc signing if the dev cert doesn't finish signing promptly.
 SIGN_ID="Whisper Dev Signing"
-if security find-identity -v -p codesigning | grep -q "$SIGN_ID"; then
-  codesign --force --deep --sign "$SIGN_ID" "$APP"
+TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
+sign_with_dev_cert() {
+  if [[ -n "$TIMEOUT_BIN" ]]; then
+    "$TIMEOUT_BIN" 20 codesign --force --deep --sign "$SIGN_ID" "$APP"
+  else
+    codesign --force --deep --sign "$SIGN_ID" "$APP"
+  fi
+}
+if security find-identity -v -p codesigning | grep -q "$SIGN_ID" && sign_with_dev_cert; then
+  :
 else
-  echo "Missing $SIGN_ID; falling back to ad-hoc signing" >&2
+  echo "Dev cert signing missing or timed out; falling back to ad-hoc signing" >&2
   codesign --force --deep --sign - "$APP"
 fi
 # Also install into /Applications so Raycast/Spotlight index it as a real app,

@@ -115,17 +115,37 @@ enum WindowPresenter {
 
     static func showSettings() {
         if settingsWindow == nil {
-            let controller = NSHostingController(rootView: SettingsView())
+            let controller = NSHostingController(rootView: SettingsView(onIdealHeightChange: { height in
+                resizeSettingsWindow(toContentHeight: height)
+            }))
             let window = NSWindow(contentViewController: controller)
             window.title = "Whisper Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
+            window.minSize = NSSize(width: 560, height: 280)
             window.center()
             settingsController = controller
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Snaps the settings window to fit the currently-selected tab's ideal
+    /// height (clamped to a sane range), anchoring the top-left corner so it
+    /// grows/shrinks downward instead of jumping around the screen. A user's
+    /// own manual resize is respected in between tab switches — this only
+    /// fires when the ideal height for the *current* tab actually changes.
+    private static func resizeSettingsWindow(toContentHeight height: CGFloat) {
+        guard let window = settingsWindow else { return }
+        let clamped = max(280, min(height, 720))
+        var frame = window.frame
+        let currentContentHeight = window.contentView?.frame.height ?? frame.height
+        guard abs(currentContentHeight - clamped) > 1 else { return }
+        let delta = clamped - currentContentHeight
+        frame.origin.y -= delta
+        frame.size.height += delta
+        window.setFrame(frame, display: true, animate: window.isVisible)
     }
 
     static func showHistory() {
