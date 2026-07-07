@@ -41,6 +41,15 @@ openssl x509 -in "$WORKDIR/cert.pem" -outform DER -out "$WORKDIR/cert.der"
 security import "$WORKDIR/key.pem" -k "$KEYCHAIN" -A
 security import "$WORKDIR/cert.der" -k "$KEYCHAIN" -A
 
+# `-A` above sets the legacy SecAccess ACL, but modern codesign/security
+# tooling checks the *partition list* instead — without this, the first
+# codesign call (or any call after a keychain lock/relock) throws up a
+# "codesign wants to access key..." Keychain prompt. In a non-interactive
+# shell that dialog never gets answered and codesign hangs forever, which
+# happened repeatedly during Whisper development. This closes that gap at
+# cert-creation time.
+security set-key-partition-list -S apple-tool:,apple:,codesign: -k "" "$KEYCHAIN" >/dev/null 2>&1 || true
+
 # This is the step that prompts for your macOS password: trusting a cert
 # for code signing is a system security-policy change.
 security add-trusted-cert -d -r trustRoot -p codeSign -k "$KEYCHAIN" "$WORKDIR/cert.pem"

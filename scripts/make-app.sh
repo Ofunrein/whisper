@@ -17,24 +17,38 @@ cp -R Resources/Sounds "$APP/Contents/Resources/Sounds"
 # Stable local signing keeps macOS TCC Accessibility trust attached across
 # rebuilds. Ad-hoc signing changes cdhash every build, so the Accessibility
 # checkbox can look enabled while AXIsProcessTrusted() returns false.
-# Bounded with a timeout: a Keychain private-key-access prompt can silently
-# hang forever in a non-interactive/headless shell (no dialog ever appears
-# to answer), which previously stalled builds indefinitely. Fall back to
-# ad-hoc signing if the dev cert doesn't finish signing promptly.
+# No nested code (frameworks/plugins/embedded binaries) exists in this bundle
+# -- just one Mach-O plus plain data resources -- so --deep is unnecessary
+# here. It also turned out to be the actual cause of codesign hanging
+# indefinitely against this bundle in a non-interactive shell (root-caused
+# 2026-07-07; a bare `--sign` with no --deep completes instantly on the same
+# bundle where --deep hung every time). Bounded with a timeout anyway as a
+# safety net against any future Keychain-prompt-style hang.
 SIGN_ID="Whisper Dev Signing"
 TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
 sign_with_dev_cert() {
   if [[ -n "$TIMEOUT_BIN" ]]; then
-    "$TIMEOUT_BIN" 20 codesign --force --deep --sign "$SIGN_ID" "$APP"
+    "$TIMEOUT_BIN" 20 codesign --force --sign "$SIGN_ID" "$APP"
   else
-    codesign --force --deep --sign "$SIGN_ID" "$APP"
+    codesign --force --sign "$SIGN_ID" "$APP"
   fi
 }
 if security find-identity -v -p codesigning | grep -q "$SIGN_ID" && sign_with_dev_cert; then
   :
 else
-  echo "Dev cert signing missing or timed out; falling back to ad-hoc signing" >&2
-  codesign --force --deep --sign - "$APP"
+  echo "" >&2
+  echo "############################################################" >&2
+  echo "# WARNING: dev cert signing missing or timed out.           #" >&2
+  echo "# Falling back to AD-HOC SIGNING for this build.            #" >&2
+  echo "#                                                            #" >&2
+  echo "# Ad-hoc signing changes the app's identity on EVERY build,  #" >&2
+  echo "# which silently invalidates macOS Accessibility trust even  #" >&2
+  echo "# though the toggle in System Settings still shows 'on'.     #" >&2
+  echo "# Run scripts/install-dev-cert.sh, then rebuild, before      #" >&2
+  echo "# relying on Accessibility features (auto-paste, hotkeys).   #" >&2
+  echo "############################################################" >&2
+  echo "" >&2
+  codesign --force --sign - "$APP"
 fi
 # Also install into /Applications so Raycast/Spotlight index it as a real app,
 # not a transient repo build artifact that loses to Superwhisper.app.
