@@ -220,7 +220,7 @@ If something is ambiguous or clearly misheard, leave it as-is rather than guessi
 struct AppSettings: Codable, Equatable {
     static let defaultGeminiModel = "gemini-3.5-flash"
     static let defaultGroqCleanupModel = "openai/gpt-oss-20b"
-    static let defaultCerebrasModel = "llama-3.3-70b"
+    static let defaultCerebrasModel = "gpt-oss-120b"
     static let defaultOpenAICleanupModel = "gpt-4o-mini"
     static let defaultOllamaModel = "llama3.2"
     static let defaultOllamaBaseURL = "http://localhost:11434"

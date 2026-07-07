@@ -175,34 +175,42 @@ private struct ProvidersTab: View {
                         .foregroundStyle(.secondary)
 
                     Divider()
-                    Text("Model overrides")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    activeCleanupModelPicker
 
-                    ModelPicker(label: "Gemini model", provider: .gemini, selection: $store.settings.geminiModel)
-                    ModelPicker(label: "Groq cleanup model", provider: .groq, selection: $store.settings.groqCleanupModel)
-                    ModelPicker(label: "Cerebras model", provider: .cerebras, selection: $store.settings.cerebrasModel)
-                    ModelPicker(label: "OpenAI cleanup model", provider: .openAI, selection: $store.settings.openAICleanupModel)
-                    ModelPicker(label: "Ollama model", provider: .ollama, selection: $store.settings.ollamaModel)
-                    LabeledContent("Ollama base URL") {
-                        TextField("", text: $store.settings.ollamaBaseURL).textFieldStyle(.roundedBorder)
-                    }
                     HStack {
                         Spacer()
-                        Button("Restore Model Defaults") {
-                            store.settings.geminiModel = AppSettings.defaultGeminiModel
-                            store.settings.groqCleanupModel = AppSettings.defaultGroqCleanupModel
-                            store.settings.cerebrasModel = AppSettings.defaultCerebrasModel
-                            store.settings.openAICleanupModel = AppSettings.defaultOpenAICleanupModel
-                            store.settings.ollamaModel = AppSettings.defaultOllamaModel
-                            store.settings.ollamaBaseURL = AppSettings.defaultOllamaBaseURL
-                        }
+                        Button("Restore Model Defaults") { restoreModelDefaults() }
                     }
                 }
                 .padding(8)
             }
         }
         .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var activeCleanupModelPicker: some View {
+        switch store.settings.cleanupProvider {
+        case .gemini:
+            ModelPicker(label: "Gemini model", provider: .gemini, selection: $store.settings.geminiModel)
+        case .groq:
+            ModelPicker(label: "Groq cleanup model", provider: .groq, selection: $store.settings.groqCleanupModel)
+        case .cerebras:
+            ModelPicker(label: "Cerebras model", provider: .cerebras, selection: $store.settings.cerebrasModel)
+        case .openAI:
+            ModelPicker(label: "OpenAI cleanup model", provider: .openAI, selection: $store.settings.openAICleanupModel)
+        case .ollama:
+            ModelPicker(label: "Ollama model", provider: .ollama, selection: $store.settings.ollamaModel)
+        }
+    }
+
+    private func restoreModelDefaults() {
+        store.settings.geminiModel = AppSettings.defaultGeminiModel
+        store.settings.groqCleanupModel = AppSettings.defaultGroqCleanupModel
+        store.settings.cerebrasModel = AppSettings.defaultCerebrasModel
+        store.settings.openAICleanupModel = AppSettings.defaultOpenAICleanupModel
+        store.settings.ollamaModel = AppSettings.defaultOllamaModel
+        store.settings.ollamaBaseURL = AppSettings.defaultOllamaBaseURL
     }
 }
 
