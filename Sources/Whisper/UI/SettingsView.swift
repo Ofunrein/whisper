@@ -111,15 +111,14 @@ private struct ProviderBadge: View {
 
     var body: some View {
         Label(isLocal ? "Local" : "Cloud", systemImage: isLocal ? "desktopcomputer" : "cloud")
-            .font(.caption)
+            .font(.caption.weight(.semibold))
             .foregroundStyle(isLocal ? .green : .blue)
             .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background((isLocal ? Color.green : Color.blue).opacity(0.12))
+            .padding(.vertical, 4)
+            .background((isLocal ? Color.green : Color.blue).opacity(0.14))
             .clipShape(Capsule())
     }
 }
-
 
 private struct ProvidersTab: View {
     @ObservedObject var store: SettingsStore
@@ -147,19 +146,20 @@ private struct ProvidersTab: View {
                         }
                         ProviderBadge(isLocal: store.settings.sttProvider.isLocal)
                     }
+
+                    Text(store.settings.sttProvider.isLocal ? "Local STT runs on this Mac." : "Cloud STT uses external API billing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     if store.settings.sttProvider == .localWhisper {
                         Divider()
                         LocalWhisperSettings(store: store)
-                    } else {
-                        Text("Cloud STT uses external API billing.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(8)
             }
 
-            GroupBox("Cleanup Provider") {
+            GroupBox("Cleanup") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Picker("Cleanup Provider", selection: $store.settings.cleanupProvider) {
@@ -169,11 +169,16 @@ private struct ProvidersTab: View {
                         }
                         ProviderBadge(isLocal: store.settings.cleanupProvider.isLocal)
                     }
-                    Divider()
+
                     Text(store.settings.cleanupProvider.isLocal ? "Local cleanup runs through Ollama." : "Cloud cleanup uses external API billing.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Model overrides").font(.caption).foregroundStyle(.secondary)
+
+                    Divider()
+                    Text("Model overrides")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     ModelPicker(label: "Gemini model", provider: .gemini, selection: $store.settings.geminiModel)
                     ModelPicker(label: "Groq cleanup model", provider: .groq, selection: $store.settings.groqCleanupModel)
                     ModelPicker(label: "Cerebras model", provider: .cerebras, selection: $store.settings.cerebrasModel)
@@ -201,7 +206,6 @@ private struct ProvidersTab: View {
     }
 }
 
-
 private struct LocalWhisperSettings: View {
     @ObservedObject var store: SettingsStore
     @State private var downloadingID: String?
@@ -211,10 +215,6 @@ private struct LocalWhisperSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Local whisper.cpp")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
             HStack {
                 TextField("Model path", text: $store.settings.localWhisperModelPath)
                     .textFieldStyle(.roundedBorder)
@@ -230,9 +230,8 @@ private struct LocalWhisperSettings: View {
                 }
             }
 
-            Divider()
             Text("Download local models")
-                .font(.caption)
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 6) {
