@@ -240,7 +240,7 @@ struct AppSettings: Codable, Equatable {
     var soundSet: SoundSet = .softChime
     var preferredInputDevice: String? = nil  // nil = system default mic
     var bindings: [HotkeyBinding] = [.defaultRightCommand]
-    var rightClickHoldThresholdMs: Double = 1700
+    var rightClickHoldThresholdMs: Double = 600
     var geminiModel: String = defaultGeminiModel
     var groqCleanupModel: String = defaultGroqCleanupModel
     var cerebrasModel: String = defaultCerebrasModel
