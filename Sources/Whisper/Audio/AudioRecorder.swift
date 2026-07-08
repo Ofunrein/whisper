@@ -23,6 +23,11 @@ final class AudioRecorder: ObservableObject {
     private var tapInstalled = false
     private var startTime: Date?
 
+    private var systemAudioCapture: Any?  // SystemAudioCapture, type-erased for the macOS 14.2 availability gate
+    private var systemPCM = Data()
+    private var systemPeakLevel: Float = 0
+    private let systemLock = NSLock()
+
     private var lastLevelPost = Date.distantPast
     private var smoothed: Float = 0
     private var peakLevel: Float = 0
@@ -116,6 +121,78 @@ final class AudioRecorder: ObservableObject {
         startTime = Date()
         peakLevel = 0
         lock.unlock()
+        startSystemAudioIfEnabled()
+    }
+
+    private func startSystemAudioIfEnabled() {
+        guard SettingsStore.shared.settings.recordSystemAudio == true else { return }
+        guard #available(macOS 14.2, *) else {
+            NSLog("AudioRecorder: system audio capture requires macOS 14.2+, skipping")
+            return
+        }
+        systemLock.lock()
+        systemPCM.removeAll(keepingCapacity: true)
+        systemPeakLevel = 0
+        systemLock.unlock()
+        let capture = SystemAudioCapture()
+        do {
+            try capture.start { [weak self] chunk in
+                guard let self else { return }
+                self.systemLock.lock()
+                self.systemPCM.append(chunk)
+                chunk.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+                    let samples = raw.bindMemory(to: Int16.self)
+                    for s in samples {
+                        let norm = min(1, abs(Float(s)) / Float(Int16.max))
+                        if norm > self.systemPeakLevel { self.systemPeakLevel = norm }
+                    }
+                }
+                self.systemLock.unlock()
+            }
+            systemAudioCapture = capture
+        } catch {
+            NSLog("AudioRecorder: failed to start system audio capture: \(error)")
+            systemAudioCapture = nil
+        }
+    }
+
+    @available(macOS 14.2, *)
+    private func stopSystemAudioIfRunning() -> (pcm: Data, peak: Float) {
+        guard let capture = systemAudioCapture as? SystemAudioCapture else { return (Data(), 0) }
+        capture.stop()
+        systemAudioCapture = nil
+        systemLock.lock()
+        let captured = systemPCM
+        let peak = systemPeakLevel
+        systemPCM.removeAll(keepingCapacity: false)
+        systemPeakLevel = 0
+        systemLock.unlock()
+        return (captured, peak)
+    }
+
+    /// Sample-for-sample additive mix of two 16-bit mono PCM streams (same
+    /// sample rate/format). Leftover tail from the longer stream is kept
+    /// as-is. Not sample-accurate (mic and system taps start a few ms
+    /// apart), which is fine for STT input.
+    private static func mixPCM(_ a: Data, _ b: Data) -> Data {
+        guard !b.isEmpty else { return a }
+        guard !a.isEmpty else { return b }
+        let sampleCountA = a.count / 2
+        let sampleCountB = b.count / 2
+        let sampleCount = max(sampleCountA, sampleCountB)
+        var mixed = [Int16](repeating: 0, count: sampleCount)
+        a.withUnsafeBytes { (rawA: UnsafeRawBufferPointer) in
+            let samplesA = rawA.bindMemory(to: Int16.self)
+            for i in 0..<sampleCountA { mixed[i] = samplesA[i] }
+        }
+        b.withUnsafeBytes { (rawB: UnsafeRawBufferPointer) in
+            let samplesB = rawB.bindMemory(to: Int16.self)
+            for i in 0..<sampleCountB {
+                let sum = Int32(mixed[i]) + Int32(samplesB[i])
+                mixed[i] = Int16(max(Int32(Int16.min), min(Int32(Int16.max), sum)))
+            }
+        }
+        return mixed.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
     /// Stop capturing and return WAV data, or nil if the take was empty/too short.
@@ -123,18 +200,29 @@ final class AudioRecorder: ObservableObject {
         lock.lock()
         recording = false
         let started = startTime
-        let raw = pcm
+        var raw = pcm
         pcm.removeAll(keepingCapacity: false)
         lock.unlock()
+
+        var systemPeak: Float = 0
+        if #available(macOS 14.2, *) {
+            let system = stopSystemAudioIfRunning()
+            systemPeak = system.peak
+            if !system.pcm.isEmpty {
+                raw = Self.mixPCM(raw, system.pcm)
+            }
+        }
 
         DispatchQueue.main.async { self.level = 0 }
 
         if let started = started, Date().timeIntervalSince(started) < minDuration { return nil }
         guard !raw.isEmpty else { return nil }
         // Silence gate: STT models hallucinate ("Thank you.") on silent audio,
-        // which would paste garbage on an accidental hotkey press.
-        if peakLevel < 0.03 {
-            NSLog("AudioRecorder: discarding silent take (peak %.3f)", peakLevel)
+        // which would paste garbage on an accidental hotkey press. Checked
+        // against mic AND system audio peak so a quiet mic doesn't discard
+        // a take that's carrying real system audio (e.g. meeting playback).
+        if peakLevel < 0.03 && systemPeak < 0.03 {
+            NSLog("AudioRecorder: discarding silent take (peak %.3f, system %.3f)", peakLevel, systemPeak)
             return nil
         }
         return Self.wav(fromPCM: raw, sampleRate: 16_000, channels: 1, bitsPerSample: 16)

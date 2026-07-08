@@ -89,6 +89,7 @@ private struct APIKeysTab: View {
     @State private var cerebras: String = ""
     @State private var openAI: String = ""
     @State private var pendingClear: (title: String, text: Binding<String>, account: String)? = nil
+    @State private var revealed: Set<String> = []
 
     var body: some View {
         Form {
@@ -127,11 +128,29 @@ private struct APIKeysTab: View {
         HStack {
             Text(title)
                 .frame(width: 90, alignment: .leading)
-            SecureField("API key", text: text)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: text.wrappedValue) { newValue in
-                    Keychain.set(newValue, for: account)
+            Group {
+                if revealed.contains(account) {
+                    TextField("API key", text: text)
+                } else {
+                    SecureField("API key", text: text)
                 }
+            }
+            .textFieldStyle(.roundedBorder)
+            .onChange(of: text.wrappedValue) { newValue in
+                Keychain.set(newValue, for: account)
+            }
+            Button {
+                if revealed.contains(account) {
+                    revealed.remove(account)
+                } else {
+                    revealed.insert(account)
+                }
+            } label: {
+                Image(systemName: revealed.contains(account) ? "eye.slash" : "eye")
+            }
+            .buttonStyle(.borderless)
+            .disabled(text.wrappedValue.isEmpty)
+            .help(revealed.contains(account) ? "Hide \(title) key" : "Show \(title) key")
             Button {
                 pendingClear = (title, text, account)
             } label: {
@@ -413,6 +432,24 @@ private struct VocabularyTab: View {
     @State private var newFrom: String = ""
     @State private var newTo: String = ""
 
+    private func fromBinding(_ index: Int) -> Binding<String> {
+        Binding(
+            get: { store.settings.vocabulary[index].from },
+            set: { store.settings.vocabulary[index].from = $0 }
+        )
+    }
+
+    /// Empty text = plain vocabulary word (known term); non-empty = replacement pair.
+    private func toBinding(_ index: Int) -> Binding<String> {
+        Binding(
+            get: { store.settings.vocabulary[index].to ?? "" },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                store.settings.vocabulary[index].to = trimmed.isEmpty ? nil : trimmed
+            }
+        )
+    }
+
     var body: some View {
         Form {
             GroupBox("Vocabulary") {
@@ -432,15 +469,12 @@ private struct VocabularyTab: View {
                         ScrollView {
                             LazyVStack(spacing: 6) {
                                 ForEach(Array(store.settings.vocabulary.enumerated()), id: \.element.id) { index, entry in
-                                    HStack {
-                                        Text(entry.from)
-                                        if let to = entry.to {
-                                            Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                                            Text(to)
-                                        } else {
-                                            Text("(known term)").font(.caption).foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
+                                    HStack(spacing: 6) {
+                                        TextField("Word or phrase", text: fromBinding(index))
+                                            .textFieldStyle(.roundedBorder)
+                                        Image(systemName: "arrow.right").foregroundStyle(.secondary)
+                                        TextField("(known term)", text: toBinding(index))
+                                            .textFieldStyle(.roundedBorder)
                                         Button(role: .destructive) {
                                             store.settings.vocabulary.remove(at: index)
                                         } label: {
@@ -494,6 +528,13 @@ private struct VocabularyTab: View {
 private struct OutputTab: View {
     @ObservedObject var store: SettingsStore
 
+    private var recordSystemAudioBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.recordSystemAudio ?? false },
+            set: { store.settings.recordSystemAudio = $0 }
+        )
+    }
+
     var body: some View {
         Form {
             GroupBox("Output") {
@@ -507,6 +548,20 @@ private struct OutputTab: View {
                         Toggle("Keep transcript on clipboard after paste", isOn: $store.settings.keepOnClipboardAfterPaste)
                     }
                     Toggle("Save audio recordings", isOn: $store.settings.saveAudio)
+
+                    if #available(macOS 14.2, *) {
+                        Toggle("Also record system audio", isOn: recordSystemAudioBinding)
+                        Text("Mixes in whatever is playing through speakers/headphones (e.g. a call) alongside the mic. Off by default. macOS will ask you to approve this the first time you use it.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Toggle("Also record system audio", isOn: .constant(false))
+                            .disabled(true)
+                        Text("Requires macOS 14.2 or later.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Toggle("Play sound when recording starts/stops", isOn: $store.settings.soundEffectsEnabled)
 
                     Divider()
@@ -623,6 +678,73 @@ private struct OutputTab: View {
 
 // MARK: - Hotkey
 
+/// A small keycap-style glyph representing one physical key or mouse button in
+/// a binding, so bindings read as "what you'd see on the keyboard/mouse"
+/// rather than as plain text abbreviations.
+private struct Keycap: View {
+    private let text: String?
+    private let systemImage: String?
+    private let badge: String?
+    private let tint: Color
+
+    init(_ text: String, badge: String? = nil, tint: Color = .primary) {
+        self.text = text
+        self.systemImage = nil
+        self.badge = badge
+        self.tint = tint
+    }
+
+    init(systemImage: String, badge: String? = nil, tint: Color = .primary) {
+        self.text = nil
+        self.systemImage = systemImage
+        self.badge = badge
+        self.tint = tint
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                } else if let text {
+                    Text(text)
+                }
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(minWidth: 24, minHeight: 20)
+            .padding(.horizontal, 5)
+            .background(RoundedRectangle(cornerRadius: 5).fill(tint.opacity(0.14)))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(tint.opacity(0.35), lineWidth: 1))
+
+            if let badge {
+                Text(badge)
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(2)
+                    .frame(minWidth: 12, minHeight: 12)
+                    .background(Circle().fill(tint))
+                    .offset(x: 5, y: 5)
+            }
+        }
+    }
+}
+
+/// Hold vs. toggle indicator, same visual language as ProviderBadge above.
+private struct TriggerBadge: View {
+    let style: HotkeyTriggerStyle
+
+    var body: some View {
+        Label(style == .hold ? "Hold" : "Toggle", systemImage: style == .hold ? "hand.tap.fill" : "arrow.left.arrow.right.circle.fill")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(style == .hold ? .orange : .purple)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background((style == .hold ? Color.orange : Color.purple).opacity(0.14))
+            .clipShape(Capsule())
+    }
+}
+
 private struct HotkeyTab: View {
     @ObservedObject var store: SettingsStore
     @State private var isRecording = false
@@ -630,17 +752,34 @@ private struct HotkeyTab: View {
     @State private var mouseButtonSelection: Int = 2
     @State private var keyMonitor: Any?
 
+    private let modifierPresets: [(name: String, code: UInt16)] = [
+        ("Right Command", 54), ("Left Command", 55),
+        ("Right Option", 61), ("Left Option", 58),
+        ("Right Control", 62), ("Right Shift", 60),
+    ]
+
     var body: some View {
         Form {
             GroupBox("Current Bindings") {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 10) {
                     if store.settings.bindings.isEmpty {
                         Text("No bindings configured").foregroundStyle(.secondary)
                     } else {
                         ForEach(Array(store.settings.bindings.enumerated()), id: \.offset) { index, binding in
-                            HStack {
-                                Text(description(for: binding))
+                            HStack(spacing: 10) {
+                                glyphs(for: binding)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    TextField(description(for: binding), text: nameBinding(index))
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 13, weight: .medium))
+                                    if let name = binding.name, !name.isEmpty {
+                                        Text(description(for: binding))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                                 Spacer()
+                                TriggerBadge(style: binding.style)
                                 Button(role: .destructive) {
                                     removeBinding(at: index)
                                 } label: {
@@ -648,6 +787,7 @@ private struct HotkeyTab: View {
                                 }
                                 .buttonStyle(.borderless)
                             }
+                            .padding(.vertical, 2)
                         }
                     }
                 }
@@ -671,31 +811,26 @@ private struct HotkeyTab: View {
 
                     Text("Common defaults").font(.caption).foregroundStyle(.secondary)
 
-                    Button("Use Fn key (default)") {
+                    presetButton(glyph: Keycap("fn", tint: .purple), label: "Use Fn key (default)") {
                         addBinding(HotkeyBinding(kind: .fnKey, keyCode: nil, modifiers: nil, mouseButton: nil, style: recordingStyle))
                     }
 
-                    let modifierPresets: [(String, UInt16)] = [
-                        ("Right Command", 54), ("Left Command", 55),
-                        ("Right Option", 61), ("Left Option", 58),
-                        ("Right Control", 62), ("Right Shift", 60),
-                    ]
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                        ForEach(modifierPresets, id: \.1) { name, code in
-                            Button("Use \(name)") {
-                                addBinding(HotkeyBinding(kind: .keyCombo, keyCode: code, modifiers: 0, mouseButton: nil, style: recordingStyle))
+                        ForEach(modifierPresets, id: \.code) { preset in
+                            presetButton(glyph: modifierKeycap(for: preset.code), label: "Use \(preset.name)") {
+                                addBinding(HotkeyBinding(kind: .keyCombo, keyCode: preset.code, modifiers: 0, mouseButton: nil, style: recordingStyle))
                             }
                         }
                     }
 
+                    Divider()
+
                     HStack {
-                        Text("Mouse button")
-                        Picker("", selection: $mouseButtonSelection) {
+                        Picker("Mouse button", selection: $mouseButtonSelection) {
                             Text("Middle").tag(2)
                             Text("Mouse4").tag(3)
                             Text("Mouse5").tag(4)
                         }
-                        .labelsHidden()
                         .frame(width: 120)
                         Button("Use") {
                             addBinding(HotkeyBinding(kind: .mouseButton, keyCode: nil, modifiers: nil, mouseButton: mouseButtonSelection, style: recordingStyle))
@@ -712,7 +847,7 @@ private struct HotkeyTab: View {
                     Button("Use Right-Click (hold)") {
                         addBinding(HotkeyBinding(kind: .rightClick, keyCode: nil, modifiers: nil, mouseButton: nil, style: .hold))
                     }
-                    Text("A quick right-click still opens the context menu; holding past the threshold starts recording instead. macOS may briefly flash the context menu before the hold is recognized — this is a platform limitation of global event monitors.")
+                    Text("A quick right-click still opens the context menu; holding past the threshold starts recording instead. macOS may briefly flash the context menu before a hold is recognized — a platform limitation of global event monitors.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -720,6 +855,80 @@ private struct HotkeyTab: View {
             }
         }
         .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private func presetButton(glyph: Keycap, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                glyph
+                Text(label)
+                Spacer()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func glyphs(for binding: HotkeyBinding) -> some View {
+        HStack(spacing: 4) {
+            switch binding.kind {
+            case .fnKey:
+                Keycap("fn", tint: .purple)
+            case .keyCombo:
+                if let code = binding.keyCode, ModifierOnlyKeys.side(for: code) != nil {
+                    modifierKeycap(for: code)
+                } else {
+                    let flags = NSEvent.ModifierFlags(rawValue: UInt(binding.modifiers ?? 0))
+                    if flags.contains(.control) { Keycap(systemImage: "control", tint: .blue) }
+                    if flags.contains(.option) { Keycap(systemImage: "option", tint: .blue) }
+                    if flags.contains(.shift) { Keycap(systemImage: "shift", tint: .blue) }
+                    if flags.contains(.command) { Keycap(systemImage: "command", tint: .blue) }
+                    if let code = binding.keyCode {
+                        Keycap(keyName(for: code), tint: .primary)
+                    }
+                }
+            case .mouseButton:
+                Keycap(systemImage: "computermouse.fill", badge: mouseBadge(binding.mouseButton), tint: .orange)
+            case .rightClick:
+                Keycap(systemImage: "computermouse.fill", badge: "R", tint: .orange)
+            }
+        }
+    }
+
+    /// A modifier symbol (⌘/⌥/⌃/⇧) with an L/R corner badge, so "Right Command"
+    /// reads as the command glyph specifically marked right, not a bare ⌘.
+    private func modifierKeycap(for keyCode: UInt16) -> Keycap {
+        guard let side = ModifierOnlyKeys.side(for: keyCode) else {
+            return Keycap(keyName(for: keyCode), tint: .primary)
+        }
+        let symbol: String
+        switch side {
+        case .command: symbol = "command"
+        case .option: symbol = "option"
+        case .control: symbol = "control"
+        case .shift: symbol = "shift"
+        }
+        let rightCodes: Set<UInt16> = [54, 61, 62, 60]
+        return Keycap(systemImage: symbol, badge: rightCodes.contains(keyCode) ? "R" : "L", tint: .blue)
+    }
+
+    private func mouseBadge(_ button: Int?) -> String {
+        switch button {
+        case 2: return "M"
+        case 3: return "4"
+        case 4: return "5"
+        default: return "?"
+        }
+    }
+
+    private func nameBinding(_ index: Int) -> Binding<String> {
+        Binding(
+            get: { store.settings.bindings[index].name ?? "" },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                store.settings.bindings[index].name = trimmed.isEmpty ? nil : trimmed
+            }
+        )
     }
 
     private func startRecording() {

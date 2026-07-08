@@ -177,6 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu bar
         MenuBarController.shared.openSettings = { WindowPresenter.showSettings() }
         MenuBarController.shared.openHistory = { WindowPresenter.showHistory() }
+        MenuBarController.shared.checkForUpdatesSilently()
 
         // Pill
         PillController.shared.show()

@@ -1,0 +1,72 @@
+<Window
+    x:Class="Whisper.App.Views.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Pivot Title="Whisper Settings" Margin="16">
+
+        <PivotItem Header="API Keys">
+            <StackPanel Spacing="12" Margin="0,16,0,0">
+                <TextBlock Text="Groq API Key" FontWeight="SemiBold" />
+                <!--
+                    PasswordRevealMode="Peek" is WinUI's native reveal-password
+                    control -- it already renders the eye-icon toggle button,
+                    so no hand-rolled icon/state is needed here. Same idea as
+                    the mac app's SecureField + eye button, just the platform-
+                    native version of it.
+                -->
+                <PasswordBox
+                    x:Name="GroqKeyBox"
+                    PasswordRevealMode="Peek"
+                    PlaceholderText="gsk_..."
+                    PasswordChanged="OnGroqKeyChanged" />
+
+                <TextBlock Text="OpenAI, Deepgram, ElevenLabs" Opacity="0.6" Margin="0,12,0,0" />
+                <TextBlock Text="Not wired up yet -- Groq is the only implemented provider on Windows so far."
+                           Opacity="0.6" TextWrapping="Wrap" />
+            </StackPanel>
+        </PivotItem>
+
+        <PivotItem Header="Output">
+            <StackPanel Spacing="12" Margin="0,16,0,0">
+                <ToggleSwitch x:Name="CleanupToggle" Header="Clean up transcript" Toggled="OnCleanupToggled" />
+                <ToggleSwitch x:Name="KeepClipboardToggle" Header="Keep transcript on clipboard after paste" Toggled="OnKeepClipboardToggled" />
+                <ToggleSwitch x:Name="SaveAudioToggle" Header="Save audio recordings" Toggled="OnSaveAudioToggled" />
+                <ToggleSwitch x:Name="SoundEffectsToggle" Header="Play sound when recording starts/stops" Toggled="OnSoundEffectsToggled" />
+
+                <StackPanel Spacing="4" Margin="0,12,0,0">
+                    <ToggleSwitch x:Name="SystemAudioToggle" Header="Record system audio" Toggled="OnSystemAudioToggled" />
+                    <TextBlock
+                        Text="Mixes in audio from the app you're capturing (e.g. a call) alongside your mic. Off by default."
+                        Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+                </StackPanel>
+            </StackPanel>
+        </PivotItem>
+
+        <PivotItem Header="Hotkey">
+            <StackPanel Spacing="12" Margin="0,16,0,0">
+                <TextBlock Text="Hold this key to record:" FontWeight="SemiBold" />
+                <ComboBox x:Name="HotkeyPicker" SelectionChanged="OnHotkeyPickerChanged" Width="220">
+                    <ComboBoxItem Content="Right Ctrl" Tag="RightControl" />
+                    <ComboBoxItem Content="Right Alt" Tag="RightAlt" />
+                    <ComboBoxItem Content="Right Shift" Tag="RightShift" />
+                    <ComboBoxItem Content="Middle Mouse Button" Tag="MiddleMouse" />
+                </ComboBox>
+                <TextBlock Text="Full glyph-based hotkey recorder (matching the mac app's visual picker) is a follow-up -- this is a fixed preset list for now."
+                           Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+            </StackPanel>
+        </PivotItem>
+
+        <PivotItem Header="Vocabulary">
+            <StackPanel Spacing="12" Margin="0,16,0,0">
+                <ListView x:Name="VocabularyList" Height="240" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox x:Name="VocabFromBox" PlaceholderText="Mis-heard term" Width="200" />
+                    <TextBox x:Name="VocabToBox" PlaceholderText="Correction (optional)" Width="200" />
+                    <Button Content="Add" Click="OnAddVocabulary" />
+                </StackPanel>
+            </StackPanel>
+        </PivotItem>
+
+    </Pivot>
+</Window>

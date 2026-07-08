@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  build-mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build DMG
+        run: ./scripts/make-dmg.sh
+
+      - name: Build PKG
+        run: ./scripts/make-pkg.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-mac
+          path: |
+            build/Whisper-*.dmg
+            build/Whisper-*.pkg
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Whisper-*.dmg
+            build/Whisper-*.pkg
+          generate_release_notes: true
+          body: |
+            Unsigned by an Apple Developer ID (no notarization). On first
+            launch, right-click Whisper.app (or the installed app from the
+            pkg) and choose Open to bypass Gatekeeper's unidentified
+            developer warning.
+
+  build-windows:
+    runs-on: windows-latest
+    needs: build-mac
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install WiX
+        run: dotnet tool install --global wix --version 4.0.5
+
+      - name: Publish self-contained app
+        run: >
+          dotnet publish windows/Whisper.App/Whisper.App.csproj
+          -c Release -r win-x64 --self-contained
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:WindowsAppSDKSelfContained=true
+          -o windows/publish/win-x64
+
+      - name: Zip portable build
+        shell: pwsh
+        run: |
+          Compress-Archive -Path windows/publish/win-x64/* `
+            -DestinationPath "Whisper-Windows-${{ steps.version.outputs.version }}.zip"
+
+      - name: Build MSI
+        run: >
+          wix build windows/Whisper.App/Installer/Package.wxs
+          -arch x64
+          -d PublishDir=windows/publish/win-x64
+          -d Version=${{ steps.version.outputs.version }}
+          -o "Whisper-${{ steps.version.outputs.version }}.msi"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-windows
+          path: |
+            Whisper-Windows-*.zip
+            Whisper-*.msi
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Whisper-Windows-*.zip
+            Whisper-*.msi
+          generate_release_notes: true
+          body: |
+            Unsigned (no code-signing certificate) -- Windows SmartScreen
+            will warn on first run. Click "More info" > "Run anyway".
+            The .msi installs to Program Files + Start Menu; the .zip is a
+            portable, no-install copy.

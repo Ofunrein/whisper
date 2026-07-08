@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Minimal WiX v4 installer for the self-contained `dotnet publish` output.
+  Built in CI on windows-latest (`wix build`, see .github/workflows/release.yml)
+  -- the WiX toolset only fully works on Windows, so this isn't locally
+  verifiable on macOS beyond XML well-formedness.
+
+  PublishDir and Version are passed in via `-d`:
+    wix build Package.wxs -d PublishDir=..\publish\win-x64 -d Version=1.2.3 -arch x64 -o Whisper.msi
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="Whisper"
+      Manufacturer="Whisper"
+      Version="$(Version)"
+      UpgradeCode="c9e3d1a0-6b4f-4e2a-9d7c-1a2b3c4d5e6f">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Whisper is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Whisper" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="WhisperMenuFolder" Name="Whisper" />
+    </StandardDirectory>
+
+    <Component Id="ApplicationShortcut" Directory="WhisperMenuFolder" Guid="d4f1b2c3-7a5e-4b1a-8c6d-2e3f4a5b6c7d">
+      <Shortcut
+          Id="StartMenuShortcut"
+          Name="Whisper"
+          Target="[INSTALLFOLDER]Whisper.App.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="CleanUpShortcutFolder" Directory="WhisperMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\Whisper" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(PublishDir)\**" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>

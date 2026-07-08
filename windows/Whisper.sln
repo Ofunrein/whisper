@@ -1,0 +1,28 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whisper.Core", "Whisper.Core\Whisper.Core.csproj", "{A1B2C3D4-0001-4000-8000-000000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whisper.App", "Whisper.App\Whisper.App.csproj", "{A1B2C3D4-0002-4000-8000-000000000002}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-0001-4000-8000-000000000001}.Debug|x64.ActiveCfg = Debug|x64
+		{A1B2C3D4-0001-4000-8000-000000000001}.Debug|x64.Build.0 = Debug|x64
+		{A1B2C3D4-0001-4000-8000-000000000001}.Release|x64.ActiveCfg = Release|x64
+		{A1B2C3D4-0001-4000-8000-000000000001}.Release|x64.Build.0 = Release|x64
+		{A1B2C3D4-0002-4000-8000-000000000002}.Debug|x64.ActiveCfg = Debug|x64
+		{A1B2C3D4-0002-4000-8000-000000000002}.Debug|x64.Build.0 = Debug|x64
+		{A1B2C3D4-0002-4000-8000-000000000002}.Release|x64.ActiveCfg = Release|x64
+		{A1B2C3D4-0002-4000-8000-000000000002}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

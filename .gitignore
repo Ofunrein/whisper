@@ -1,3 +1,12 @@
 .build/
+build/
 *.xcodeproj
 .DS_Store
+
+# Windows / .NET
+windows/**/bin/
+windows/**/obj/
+windows/publish/
+*.user
+Whisper-Windows-*.zip
+Whisper-*.msi

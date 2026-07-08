@@ -56,6 +56,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let checkUpdatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(handleCheckForUpdates), keyEquivalent: "")
+        checkUpdatesItem.target = self
+        menu.addItem(checkUpdatesItem)
+
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(title: "Quit Whisper", action: #selector(quit), keyEquivalent: "q")
@@ -101,6 +105,44 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func handleCheckForUpdates() {
+        Task {
+            let release = await UpdateChecker.checkForUpdate()
+            await MainActor.run {
+                presentUpdateResult(release)
+            }
+        }
+    }
+
+    /// Silent background check (app launch): only surfaces UI if a newer
+    /// release actually exists. Never nags on "you're up to date."
+    func checkForUpdatesSilently() {
+        Task {
+            guard let release = await UpdateChecker.checkForUpdate() else { return }
+            await MainActor.run {
+                presentUpdateResult(release)
+            }
+        }
+    }
+
+    private func presentUpdateResult(_ release: UpdateChecker.Release?) {
+        let alert = NSAlert()
+        if let release {
+            alert.messageText = "Update Available"
+            alert.informativeText = "Whisper \(release.tagName) is available. You're on \(UpdateChecker.currentVersion)."
+            alert.addButton(withTitle: "Download")
+            alert.addButton(withTitle: "Later")
+            if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: release.htmlURL) {
+                NSWorkspace.shared.open(url)
+            }
+        } else {
+            alert.messageText = "You're up to date"
+            alert.informativeText = "Whisper \(UpdateChecker.currentVersion) is the latest version."
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
 }
 

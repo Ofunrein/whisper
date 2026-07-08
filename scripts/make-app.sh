@@ -11,6 +11,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp .build/release/Whisper "$APP/Contents/MacOS/Whisper"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(cat VERSION)" "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp -R Resources/Sounds "$APP/Contents/Resources/Sounds"
 

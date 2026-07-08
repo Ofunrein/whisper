@@ -15,13 +15,15 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.1.7</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Whisper records your voice while you hold the hotkey so it can transcribe what you say.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Whisper can optionally mix in system audio (e.g. a call) alongside your mic. This is off by default and only used if you enable it in Settings.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
 </dict>

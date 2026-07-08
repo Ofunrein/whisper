@@ -214,6 +214,9 @@ struct HotkeyBinding: Codable, Equatable {
     var modifiers: UInt64?      // CGEventFlags rawValue for keyCombo
     var mouseButton: Int?       // 2 = middle, 3...10 = extra buttons
     var style: HotkeyTriggerStyle
+    // Optional so settings persisted before this field existed still decode
+    // (missing key -> nil) instead of falling back to AppSettings() defaults.
+    var name: String? = nil
 
     static let defaultFn = HotkeyBinding(kind: .fnKey, keyCode: nil, modifiers: nil, mouseButton: nil, style: .hold)
     /// Right Command (keycode 54) — the right Windows key on a PC keyboard.
@@ -352,6 +355,9 @@ struct AppSettings: Codable, Equatable {
     var recordingRetention: RecordingRetention = .oneDay
     var recordingsDirectory: String? = nil  // nil = default Application Support location
     var vocabulary: [VocabularyEntry] = defaultVocabulary
+    // Optional so settings persisted before this field existed still decode
+    // (missing key -> nil == off) instead of falling back to AppSettings() defaults.
+    var recordSystemAudio: Bool? = nil
 }
 
 final class SettingsStore: ObservableObject {

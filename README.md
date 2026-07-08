@@ -4,15 +4,16 @@ Native macOS dictation app. Hold a hotkey, speak, release, then Whisper transcri
 
 ## Install
 
-Download the latest macOS build from GitHub Releases.
+Download the latest DMG or PKG from [GitHub Releases](https://github.com/Ofunrein/whisper/releases) — built automatically on every version tag by `.github/workflows/release.yml`.
 
-If macOS blocks first launch because the app is not notarized yet, right-click `Whisper.app`, choose Open, then approve the prompt.
+The build isn't signed with an Apple Developer ID (no notarization), so macOS blocks first launch: right-click `Whisper.app`, choose Open, then approve the prompt. Same applies for the DMG or the PKG installer.
 
 ## Build locally
 
 ```bash
-./scripts/make-app.sh
-open /Applications/Whisper.app
+./scripts/make-app.sh   # just the .app, installs to /Applications
+./scripts/make-dmg.sh   # + drag-to-Applications DMG in build/
+./scripts/make-pkg.sh   # + .pkg installer in build/
 ```
 
 Requires macOS 14+ and Xcode command line tools.
