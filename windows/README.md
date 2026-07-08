@@ -45,7 +45,7 @@ green.
     `PasswordBox PasswordRevealMode="Peek"`, which is the native
     reveal/hide-with-an-eye-icon control -- same idea as the mac app's
     eye-button toggle, just the platform-native version of it.
-  - `Installer/Package.wxs` -- WiX v4 source for the MSI. Built in CI via
+  - `Installer/Package.wxs` -- WiX v5 source for the MSI. Built in CI via
     `wix build`, not locally verifiable (the WiX toolset only fully works
     on Windows). Harvests the publish output with `<Files Include>` (WiX
     v4's replacement for `heat.exe`) instead of hand-listing every file.
