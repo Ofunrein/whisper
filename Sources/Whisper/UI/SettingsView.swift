@@ -923,8 +923,12 @@ private struct HotkeyTab: View {
 
     private func nameBinding(_ index: Int) -> Binding<String> {
         Binding(
-            get: { store.settings.bindings[index].name ?? "" },
+            get: {
+                guard store.settings.bindings.indices.contains(index) else { return "" }
+                return store.settings.bindings[index].name ?? ""
+            },
             set: { newValue in
+                guard store.settings.bindings.indices.contains(index) else { return }
                 let trimmed = newValue.trimmingCharacters(in: .whitespaces)
                 store.settings.bindings[index].name = trimmed.isEmpty ? nil : trimmed
             }
@@ -977,6 +981,7 @@ private struct HotkeyTab: View {
     }
 
     private func removeBinding(at index: Int) {
+        guard store.settings.bindings.indices.contains(index) else { return }
         store.settings.bindings.remove(at: index)
     }
 

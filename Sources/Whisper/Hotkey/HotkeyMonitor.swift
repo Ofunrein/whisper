@@ -43,6 +43,13 @@ final class HotkeyMonitor {
         rightClickHeld = false
         suppressRightClickUntilUp = false
         lastRightClickUpTime = nil
+        // A settings edit (e.g. deleting the binding that's mid-toggle) must
+        // never leave `recording` stranded true with no matching stop fired --
+        // that desync is what made toggle mode look like it "loops back on".
+        if recording {
+            recording = false
+            fire(start: false)
+        }
     }
 
     func start() {
