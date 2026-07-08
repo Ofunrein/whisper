@@ -18,19 +18,22 @@ cp -R Resources/Sounds "$APP/Contents/Resources/Sounds"
 # rebuilds. Ad-hoc signing changes cdhash every build, so the Accessibility
 # checkbox can look enabled while AXIsProcessTrusted() returns false.
 # No nested code (frameworks/plugins/embedded binaries) exists in this bundle
-# -- just one Mach-O plus plain data resources -- so --deep is unnecessary
-# here. It also turned out to be the actual cause of codesign hanging
-# indefinitely against this bundle in a non-interactive shell (root-caused
-# 2026-07-07; a bare `--sign` with no --deep completes instantly on the same
-# bundle where --deep hung every time). Bounded with a timeout anyway as a
-# safety net against any future Keychain-prompt-style hang.
+# -- just one Mach-O plus plain data resources -- so --deep is unnecessary.
+# --timestamp=none is the real fix for codesign hanging indefinitely against
+# this bundle in a non-interactive shell (root-caused 2026-07-07, second
+# pass): codesign defaults to contacting Apple's timestamp authority server
+# over the network, which can hang or stall silently on a flaky/proxied
+# connection. A local dev-signing cert has no need for a trusted timestamp
+# anyway. (An earlier theory blamed Keychain ACLs / --deep; those may have
+# been red herrings from network flakiness happening to coincide with the
+# same retries -- --timestamp=none is what actually reproduces reliably.)
 SIGN_ID="Whisper Dev Signing"
 TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
 sign_with_dev_cert() {
   if [[ -n "$TIMEOUT_BIN" ]]; then
-    "$TIMEOUT_BIN" 20 codesign --force --sign "$SIGN_ID" "$APP"
+    "$TIMEOUT_BIN" 20 codesign --force --sign "$SIGN_ID" --timestamp=none "$APP"
   else
-    codesign --force --sign "$SIGN_ID" "$APP"
+    codesign --force --sign "$SIGN_ID" --timestamp=none "$APP"
   fi
 }
 if security find-identity -v -p codesigning | grep -q "$SIGN_ID" && sign_with_dev_cert; then
@@ -48,7 +51,7 @@ else
   echo "# relying on Accessibility features (auto-paste, hotkeys).   #" >&2
   echo "############################################################" >&2
   echo "" >&2
-  codesign --force --sign - "$APP"
+  codesign --force --sign - --timestamp=none "$APP"
 fi
 # Also install into /Applications so Raycast/Spotlight index it as a real app,
 # not a transient repo build artifact that loses to Superwhisper.app.
