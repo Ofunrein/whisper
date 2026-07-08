@@ -61,7 +61,7 @@ jobs:
       - name: Publish self-contained app
         run: >
           dotnet publish windows/Whisper.App/Whisper.App.csproj
-          -c Release -r win-x64 --self-contained
+          -c Release -r win-x64 -p:Platform=x64 --self-contained
           -p:Version=${{ steps.version.outputs.version }}
           -p:WindowsAppSDKSelfContained=true
           -o windows/publish/win-x64
