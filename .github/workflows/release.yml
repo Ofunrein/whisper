@@ -65,6 +65,17 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -p:WindowsAppSDKSelfContained=true
           -o windows/publish/win-x64
+          -v:normal
+
+      - name: Dump XAML compiler diagnostics on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path windows/Whisper.App/obj -Recurse -Include *.log,*.err,*.json -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              Write-Host "----- $($_.FullName) -----"
+              Get-Content $_.FullName
+            }
 
       - name: Zip portable build
         shell: pwsh
