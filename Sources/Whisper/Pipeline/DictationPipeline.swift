@@ -54,9 +54,10 @@ final class DictationPipeline: ObservableObject {
         let pasteTargetPID = pasteTargetPID
         Task.detached(priority: .userInitiated) { [weak self] in
             await self?.process(wav: wav, settings: settings, pasteTargetPID: pasteTargetPID)
+            guard let self else { return }
             await MainActor.run {
-                self?.busy = false
-                self?.onStateChange?(.idle)
+                self.busy = false
+                self.onStateChange?(.idle)
             }
         }
     }
