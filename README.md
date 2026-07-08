@@ -41,7 +41,7 @@ Quick right-clicks pass through to normal context menus. Rapid double right-clic
 
 ## Interface
 
-<img width="71" height="38" alt="image" src="https://github.com/user-attachments/assets/a7d4fa17-df87-45a7-a637-a22ef12fbec4" />
+<img width="183" height="60" alt="image" src="https://github.com/user-attachments/assets/768935ba-9c7d-4689-ac1c-f9dd195fe97e" />
 
 
 <img width="183" height="60" alt="image" src="https://github.com/user-attachments/assets/7d6f383d-e272-4256-9a66-fa3b80418dec" />
