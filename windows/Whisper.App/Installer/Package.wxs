@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Minimal WiX v4 installer for the self-contained `dotnet publish` output.
-  Built in CI on windows-latest (`wix build`, see .github/workflows/release.yml)
-  -- the WiX toolset only fully works on Windows, so this isn't locally
+  Built in CI on windows-latest (`wix build`, see .github/workflows/release.yml);
+  the WiX toolset only fully works on Windows, so this isn't locally
   verifiable on macOS beyond XML well-formedness.
 
   PublishDir and Version are passed in via `-d`:

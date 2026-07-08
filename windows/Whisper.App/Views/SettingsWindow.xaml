@@ -10,7 +10,7 @@
                 <TextBlock Text="Groq API Key" FontWeight="SemiBold" />
                 <!--
                     PasswordRevealMode="Peek" is WinUI's native reveal-password
-                    control -- it already renders the eye-icon toggle button,
+                    control; it already renders the eye-icon toggle button,
                     so no hand-rolled icon/state is needed here. Same idea as
                     the mac app's SecureField + eye button, just the platform-
                     native version of it.
