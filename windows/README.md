@@ -98,8 +98,6 @@ ships.
 
 ## Known gaps to check first when it's actually running
 
-- `TrayIcon.cs`'s `LoadIcon` call uses the stock `IDI_APPLICATION` icon
-  placeholder -- swap in a real `.ico` before shipping.
 - `HotkeyManager` doesn't yet distinguish which XButton fired reliably
   across all mice/drivers -- worth a real hardware test.
 - No notarization/code-signing story here either, matching the mac app's

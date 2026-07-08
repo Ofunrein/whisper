@@ -84,6 +84,22 @@ public sealed class TrayIcon : IDisposable
     [DllImport("kernel32.dll")]
     private static extern nint GetModuleHandle(string? lpModuleName);
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint ExtractIconEx(string lpszFile, int nIconIndex, nint[]? phiconLarge, nint[]? phiconSmall, uint nIcons);
+
+    /// Pulls icon index 0 out of the running exe's own resources -- the
+    /// icon embedded there via the csproj's ApplicationIcon (Assets/AppIcon.ico)
+    /// -- instead of the IDI_APPLICATION stock placeholder.
+    private static nint LoadAppIcon()
+    {
+        var exePath = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exePath)) return LoadIcon(0, new nint(32512));
+
+        var large = new nint[1];
+        var extracted = ExtractIconEx(exePath, 0, large, null, 1);
+        return extracted > 0 && large[0] != 0 ? large[0] : LoadIcon(0, new nint(32512));
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WNDCLASSEX
     {
@@ -131,7 +147,7 @@ public sealed class TrayIcon : IDisposable
             uID = 1,
             uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
             uCallbackMessage = WM_TRAYICON,
-            hIcon = LoadIcon(0, new nint(32512)), // IDI_APPLICATION placeholder; replace with app .ico
+            hIcon = LoadAppIcon(),
             szTip = "Whisper",
         };
         Shell_NotifyIcon(NIM_ADD, ref _icon);
