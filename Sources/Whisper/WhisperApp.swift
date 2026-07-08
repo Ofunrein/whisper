@@ -160,11 +160,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Migration: settings saved before the anti-refusal cleanup prompt
-        // was added still hold the old instructions verbatim (a saved value
-        // always wins over a changed code default). Upgrade it forward only
-        // on an exact match against the known old default, so a user's own
-        // customized instructions are never touched.
-        if SettingsStore.shared.settings.cleanupInstructions == legacyCleanupInstructionsV1 {
+        // was added still hold an old instructions string verbatim (a saved
+        // value always wins over a changed code default). Upgrade it forward
+        // only on an exact match against a known old default, so a user's
+        // own customized instructions are never touched.
+        let legacyCleanupInstructions = [legacyCleanupInstructionsV1, legacyCleanupInstructionsV2]
+        if legacyCleanupInstructions.contains(SettingsStore.shared.settings.cleanupInstructions) {
             SettingsStore.shared.settings.cleanupInstructions = defaultCleanupInstructions
         }
 

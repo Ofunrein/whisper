@@ -59,4 +59,30 @@ final class RefusalGuardTests: XCTestCase {
         let cleaned = "I must decline this request because it violates the \u{201C}no account access\u{201D} policy."
         XCTAssertTrue(RefusalGuard.isRefusal(cleaned: cleaned, raw: raw))
     }
+
+    func testNovelRefusalWordingNotInExactPhraseListIsStillCaught() {
+        // The exact-phrase list can only ever chase known wordings — a
+        // provider's safety layer can refuse in wording nobody hardcoded yet,
+        // especially for sensitive/personal/explicit-sounding dictation. The
+        // broad apology+refusal-signal pattern must catch phrasing variance
+        // the exact list was never updated for.
+        let raw = "text her back and tell her exactly what happened last night, all the details"
+        let novelRefusals = [
+            "Unfortunately, I'm not able to help with that particular request.",
+            "I apologize, but I won't be able to assist with this one.",
+            "Sorry, I'm unable to help with that kind of content.",
+        ]
+        for refusal in novelRefusals {
+            XCTAssertTrue(RefusalGuard.isRefusal(cleaned: refusal, raw: raw),
+                           "Expected novel refusal wording '\(refusal)' to be caught by the broad pattern check")
+        }
+    }
+
+    func testApologyAloneWithoutRefusalSignalIsNotFlagged() {
+        // A genuine transcript that happens to contain "sorry" must not be
+        // treated as a refusal just because one of the two signals is present.
+        let raw = "hey I'm sorry I missed your call earlier, can we reschedule for tomorrow"
+        let cleaned = "Hey, I'm sorry I missed your call earlier. Can we reschedule for tomorrow?"
+        XCTAssertFalse(RefusalGuard.isRefusal(cleaned: cleaned, raw: raw))
+    }
 }

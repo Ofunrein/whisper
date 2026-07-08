@@ -61,6 +61,26 @@ enum RefusalGuard {
         if refusalPhrases.contains(where: lower.contains) {
             return true
         }
+        // Broad pattern check, not exact-phrase matching: catches refusal
+        // wording the exact-phrase list above was never updated for (any
+        // provider can phrase a refusal a new way at any time — an exact
+        // phrase list can only ever chase known wordings after the fact).
+        // This is the actual reason cleanup for sensitive/personal/NSFW-
+        // sounding dictation must never be trusted to "just not refuse":
+        // the provider's own safety layer can trigger regardless of prompt
+        // instructions, in wording nobody hardcoded yet. Two independent
+        // apology/refusal signals anywhere in a short response is enough.
+        let apologySignals = ["sorry", "apologize", "unfortunately"]
+        let refusalSignals = ["can't help", "cannot help", "can't assist",
+                               "cannot assist", "can't provide", "cannot provide",
+                               "can't do that", "cannot do that", "won't be able",
+                               "not able to help", "not able to assist",
+                               "unable to help", "unable to assist"]
+        let hasApology = apologySignals.contains { lower.contains($0) }
+        let hasRefusalSignal = refusalSignals.contains { lower.contains($0) }
+        if hasApology && hasRefusalSignal {
+            return true
+        }
         // A cleaned transcript should be roughly the same length as the raw
         // one (filler-word removal shrinks it a bit, nothing more). A model
         // that collapses a real transcript down to a one-line reply is
