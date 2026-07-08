@@ -31,10 +31,33 @@ enum RefusalGuard {
         "i don't feel comfortable",
     ]
 
+    /// Maps typographic punctuation that LLMs commonly substitute for the
+    /// plain ASCII forms used in `refusalPhrases` (curly single/double quotes)
+    /// to their ASCII equivalents. Without this normalization, a model that
+    /// writes "can\u{2019}t" (curly apostrophe) instead of "can't" (straight
+    /// apostrophe) silently defeats every `.contains` check below — the
+    /// phrase list would need a hardcoded duplicate for every possible
+    /// punctuation variant of every phrase, which doesn't scale and will
+    /// recur. Normalizing the input once, structurally, closes the whole
+    /// class of bug instead of one instance of it.
+    private static let punctuationNormalization: [Character: Character] = [
+        "\u{2019}": "'", // right single quotation mark (curly apostrophe)
+        "\u{2018}": "'", // left single quotation mark
+        "\u{201C}": "\"", // left double quotation mark
+        "\u{201D}": "\"", // right double quotation mark
+    ]
+
+    /// Normalizes typographic punctuation to plain ASCII so phrase matching
+    /// can't be defeated by a model's choice of curly quotes vs. straight
+    /// ones.
+    private static func normalizePunctuation(_ text: String) -> String {
+        String(text.map { punctuationNormalization[$0] ?? $0 })
+    }
+
     /// Returns true if `cleaned` looks like a refusal/commentary rather than a
     /// cleaned-up version of `raw`, and should therefore be discarded.
     static func isRefusal(cleaned: String, raw: String) -> Bool {
-        let lower = cleaned.lowercased()
+        let lower = normalizePunctuation(cleaned).lowercased()
         if refusalPhrases.contains(where: lower.contains) {
             return true
         }

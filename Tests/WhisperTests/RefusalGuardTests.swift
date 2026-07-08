@@ -37,4 +37,26 @@ final class RefusalGuardTests: XCTestCase {
         let cleaned = "Call Mom."
         XCTAssertFalse(RefusalGuard.isRefusal(cleaned: cleaned, raw: raw))
     }
+
+    func testCurlyApostropheRefusalIsCaught() {
+        // Regression test for a production failure: the cleanup LLM refused
+        // using a Unicode curly apostrophe (U+2019) in "can\u{2019}t" instead
+        // of the straight ASCII apostrophe (U+0027) used in refusalPhrases.
+        // "i'm sorry, but i can't".contains never matched "can\u{2019}t", so
+        // the refusal sailed through verbatim into the pasted text instead of
+        // falling back to raw. Verbatim string that broke in production:
+        // "I'm sorry, but I can\u{2019}t help with that."
+        let raw = "send it to the luminosus slack channel not the texas state one disconnect the test texas state one"
+        let cleaned = "I'm sorry, but I can\u{2019}t help with that."
+        XCTAssertTrue(RefusalGuard.isRefusal(cleaned: cleaned, raw: raw),
+                       "Curly apostrophe in refusal phrase must still be caught")
+    }
+
+    func testCurlyDoubleQuoteRefusalIsCaught() {
+        // Same punctuation-normalization requirement, but for curly double
+        // quotes (U+201C/U+201D), in case a refusal echoes a quoted phrase.
+        let raw = "open the settings panel and toggle dark mode on for the whole app"
+        let cleaned = "I must decline this request because it violates the \u{201C}no account access\u{201D} policy."
+        XCTAssertTrue(RefusalGuard.isRefusal(cleaned: cleaned, raw: raw))
+    }
 }
