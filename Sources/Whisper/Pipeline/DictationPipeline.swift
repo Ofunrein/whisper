@@ -178,11 +178,36 @@ final class DictationPipeline: ObservableObject {
         await Self.cleanWithTimeout(text, settings: settings)
     }
 
+    /// Choose a cleanup budget from the transcript shape. This avoids the bad
+    /// tradeoff of a single deadline: short "yes, tomorrow works" dictation
+    /// returns quickly, while URLs, code, names, numbers, vocabulary, and long
+    /// dictation get enough time for the model to repair them correctly.
+    static func cleanupDeadline(for text: String, settings: AppSettings) -> Double {
+        let words = text.split(whereSeparator: \Character.isWhitespace).count
+        var recommended: Double
+        switch words {
+        case 0...12: recommended = 2.5
+        case 13...60: recommended = 4.0
+        case 61...180: recommended = 6.0
+        default: recommended = 8.0
+        }
+
+        let edgeCasePattern = #"(?i)(https?://|www\.|@|[/\\]|--|\b\d{3,}\b|[{}<>])"#
+        let hasStructuredContent = text.range(of: edgeCasePattern, options: .regularExpression) != nil
+        let hasKnownVocabulary = settings.vocabulary.contains {
+            !$0.from.isEmpty && text.range(of: $0.from, options: .caseInsensitive) != nil
+        }
+        if hasStructuredContent || hasKnownVocabulary { recommended += 2.0 }
+
+        let ceiling = min(max(settings.cleanupTimeoutSeconds, 2.0), 15.0)
+        return min(recommended, ceiling)
+    }
+
     /// Static, UI-free version usable from selftest and tests.
     static func cleanWithTimeout(_ text: String, settings: AppSettings) async -> String? {
         let cleaner = ProviderFactory.cleaner(for: settings)
         let instruction = settings.cleanupInstructions + (VocabularyEngine.hint(for: settings.vocabulary) ?? "")
-        let timeout = settings.cleanupTimeoutSeconds
+        let timeout = cleanupDeadline(for: text, settings: settings)
 
         return await withTaskGroup(of: String?.self) { group in
             group.addTask {

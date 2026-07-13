@@ -99,6 +99,20 @@ final class PipelineTests: XCTestCase {
         XCTAssertEqual(transcript, "accurate transcript")
     }
 
+    func testAdaptiveCleanupMatrixProtectsEdgeCases() {
+        var settings = AppSettings()
+        settings.cleanupTimeoutSeconds = 8
+
+        XCTAssertEqual(DictationPipeline.cleanupDeadline(for: "Ship it tomorrow.", settings: settings), 2.5)
+        XCTAssertEqual(DictationPipeline.cleanupDeadline(for: "Email martin@example.com about build 12345", settings: settings), 4.5)
+
+        let longDictation = Array(repeating: "zephyr quasar", count: 100).joined(separator: " ")
+        XCTAssertGreaterThanOrEqual(DictationPipeline.cleanupDeadline(for: longDictation, settings: settings), 6.0)
+
+        settings.cleanupTimeoutSeconds = 4
+        XCTAssertEqual(DictationPipeline.cleanupDeadline(for: longDictation, settings: settings), 4.0)
+    }
+
     func testWavHeader() {
         let pcm = Data(repeating: 0, count: 3200) // 0.1s of 16kHz mono 16-bit
         let wav = AudioRecorder.wav(fromPCM: pcm, sampleRate: 16_000, channels: 1, bitsPerSample: 16)

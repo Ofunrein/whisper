@@ -435,8 +435,8 @@ private struct CleanupTab: View {
                     Divider()
 
                     HStack {
-                        Text("Cleanup timeout")
-                        Slider(value: $store.settings.cleanupTimeoutSeconds, in: 2...15, step: 1)
+                        Text("Max cleanup time")
+                        Slider(value: $store.settings.cleanupTimeoutSeconds, in: 3...15, step: 1)
                         Text("\(Int(store.settings.cleanupTimeoutSeconds))s")
                             .frame(width: 32, alignment: .trailing)
                             .monospacedDigit()

@@ -332,8 +332,9 @@ struct AppSettings: Codable, Equatable {
     var cleanupInstructions: String = defaultCleanupInstructions
     // Optional preserves old persisted settings. Nil means the fast default (8s).
     var sttTimeoutSeconds: Double? = 8.0
-    // Cleanup is an enhancement, never allowed to hold up dictation.
-    var cleanupTimeoutSeconds: Double = 2.0
+    // Maximum cleanup budget. The pipeline adapts beneath this based on transcript
+    // complexity so quick dictation stays quick while edge cases keep quality.
+    var cleanupTimeoutSeconds: Double = 8.0
 
     var effectiveSTTTimeoutSeconds: Double {
         min(max(sttTimeoutSeconds ?? 8.0, 3.0), 20.0)
@@ -385,7 +386,12 @@ final class SettingsStore: ObservableObject {
             // only that legacy shape; explicit user changes remain untouched.
             if decoded.sttTimeoutSeconds == nil {
                 decoded.sttTimeoutSeconds = 8
-                if decoded.cleanupTimeoutSeconds == 6 { decoded.cleanupTimeoutSeconds = 2 }
+                // Old fixed 6s default and the brief 2s fast default are both
+                // migrated to the adaptive matrix's 8s ceiling. Other values are
+                // explicit user choices and stay untouched.
+                if decoded.cleanupTimeoutSeconds == 6 || decoded.cleanupTimeoutSeconds == 2 {
+                    decoded.cleanupTimeoutSeconds = 8
+                }
             }
             settings = decoded
         } else {
