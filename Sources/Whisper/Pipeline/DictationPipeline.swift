@@ -65,14 +65,21 @@ final class DictationPipeline: ObservableObject {
     // MARK: - Processing
 
     private func process(wav: Data, settings: AppSettings, pasteTargetPID: pid_t?) async {
-        // 1. Transcribe
+        // 1. Transcribe. A failed provider gets one or more already-configured
+        // cloud backups, each bounded by the STT deadline; never leave a dictation
+        // spinner waiting on the old 10-minute transport timeout.
         let raw: String
+        let sttStarted = Date()
         do {
-            let transcriber = ProviderFactory.transcriber(for: settings)
-            raw = try await transcriber.transcribe(wavData: wav)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            raw = try await Self.transcribeWithFallback(
+                wavData: wav,
+                primary: ProviderFactory.transcriber(for: settings),
+                fallbacks: ProviderFactory.fallbackTranscribers(for: settings),
+                timeout: settings.effectiveSTTTimeoutSeconds
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+            NSLog("Whisper: STT completed in %.0fms", Date().timeIntervalSince(sttStarted) * 1_000)
         } catch {
-            NSLog("Whisper: transcription failed: \(error.localizedDescription)")
+            NSLog("Whisper: transcription failed after %.0fms: \(error.localizedDescription)", Date().timeIntervalSince(sttStarted) * 1_000)
             await MainActor.run {
                 SoundPlayer.playError()
                 PillController.shared.flashError()
@@ -122,6 +129,48 @@ final class DictationPipeline: ObservableObject {
             appName: appName,
             audioFileName: audioFileName
         ))
+    }
+
+    /// STT deadline + ordered backup path. Each provider gets a bounded chance;
+    /// a blank response counts as a failure so it cannot beat a usable backup.
+    static func transcribeWithFallback(
+        wavData: Data,
+        primary: TranscriptionProvider,
+        fallbacks: [TranscriptionProvider],
+        timeout: Double
+    ) async throws -> String {
+        var lastError: Error = ProviderError.timeout
+        for provider in [primary] + fallbacks {
+            do {
+                let text = try await transcribeWithDeadline(provider, wavData: wavData, timeout: timeout)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else {
+                    throw ProviderError.badResponse("\(provider.kind.displayName) returned an empty transcript")
+                }
+                return text
+            } catch {
+                lastError = error
+                NSLog("Whisper: STT %@ failed (%@); trying backup if configured", provider.kind.displayName, error.localizedDescription)
+            }
+        }
+        throw lastError
+    }
+
+    static func transcribeWithDeadline(
+        _ provider: TranscriptionProvider,
+        wavData: Data,
+        timeout: Double
+    ) async throws -> String {
+        try await withThrowingTaskGroup(of: String.self) { group in
+            group.addTask { try await provider.transcribe(wavData: wavData) }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(max(timeout, 0.1) * 1_000_000_000))
+                throw ProviderError.timeout
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else { throw ProviderError.timeout }
+            return first
+        }
     }
 
     /// Run cleanup with a deadline so paste never stalls; nil means "use raw".

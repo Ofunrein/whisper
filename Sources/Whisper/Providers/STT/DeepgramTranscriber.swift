@@ -17,6 +17,7 @@ struct DeepgramTranscriber: TranscriptionProvider {
 
         var request = URLRequest(url: components.url!)
         request.httpMethod = "POST"
+        request.timeoutInterval = 8
         request.setValue("Token \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("audio/wav", forHTTPHeaderField: "Content-Type")
         request.httpBody = wavData

@@ -21,6 +21,7 @@ struct GroqTranscriber: TranscriptionProvider {
 
         var request = URLRequest(url: URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!)
         request.httpMethod = "POST"
+        request.timeoutInterval = 8
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = body

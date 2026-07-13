@@ -19,7 +19,7 @@ enum STTProviderKind: String, Codable, CaseIterable, Identifiable {
 }
 
 enum CleanupProviderKind: String, Codable, CaseIterable, Identifiable {
-    case groq, cerebras, gemini, ollama, openAI
+    case groq, cerebras, gemini, ollama, openAI, anthropic
     var id: String { rawValue }
     var displayName: String {
         switch self {
@@ -28,6 +28,7 @@ enum CleanupProviderKind: String, Codable, CaseIterable, Identifiable {
         case .gemini: return "Gemini Flash"
         case .ollama: return "Ollama (local)"
         case .openAI: return "OpenAI"
+        case .anthropic: return "Claude"
         }
     }
     var needsKey: Bool { self != .ollama }
@@ -318,6 +319,7 @@ struct AppSettings: Codable, Equatable {
     static let defaultGroqCleanupModel = "openai/gpt-oss-20b"
     static let defaultCerebrasModel = "gpt-oss-120b"
     static let defaultOpenAICleanupModel = "gpt-4o-mini"
+    static let defaultAnthropicCleanupModel = "claude-haiku-4-5-20251001"
     static let defaultOllamaModel = "llama3.2"
     static let defaultOllamaBaseURL = "http://localhost:11434"
     static let defaultLocalWhisperModelPath = FileManager.default.homeDirectoryForCurrentUser
@@ -328,7 +330,14 @@ struct AppSettings: Codable, Equatable {
     var cleanupProvider: CleanupProviderKind = .groq
     var cleanupEnabled: Bool = true
     var cleanupInstructions: String = defaultCleanupInstructions
-    var cleanupTimeoutSeconds: Double = 6.0
+    // Optional preserves old persisted settings. Nil means the fast default (8s).
+    var sttTimeoutSeconds: Double? = 8.0
+    // Cleanup is an enhancement, never allowed to hold up dictation.
+    var cleanupTimeoutSeconds: Double = 2.0
+
+    var effectiveSTTTimeoutSeconds: Double {
+        min(max(sttTimeoutSeconds ?? 8.0, 3.0), 20.0)
+    }
     var outputMode: OutputMode = .pasteAtCursor
     var keepOnClipboardAfterPaste: Bool = true
     var saveAudio: Bool = false
@@ -341,6 +350,7 @@ struct AppSettings: Codable, Equatable {
     var groqCleanupModel: String = defaultGroqCleanupModel
     var cerebrasModel: String = defaultCerebrasModel
     var openAICleanupModel: String = defaultOpenAICleanupModel
+    var anthropicModel: String = defaultAnthropicCleanupModel
     var ollamaModel: String = defaultOllamaModel
     var ollamaBaseURL: String = defaultOllamaBaseURL
     var localWhisperModelPath: String = defaultLocalWhisperModelPath
@@ -370,7 +380,13 @@ final class SettingsStore: ObservableObject {
 
     init() {
         if let data = UserDefaults.standard.data(forKey: defaultsKey),
-           let decoded = try? JSONDecoder().decode(AppSettings.self, from: data) {
+           var decoded = try? JSONDecoder().decode(AppSettings.self, from: data) {
+            // v1 had no STT deadline and shipped with a 6s cleanup wait. Migrate
+            // only that legacy shape; explicit user changes remain untouched.
+            if decoded.sttTimeoutSeconds == nil {
+                decoded.sttTimeoutSeconds = 8
+                if decoded.cleanupTimeoutSeconds == 6 { decoded.cleanupTimeoutSeconds = 2 }
+            }
             settings = decoded
         } else {
             settings = AppSettings()

@@ -16,6 +16,29 @@ private struct SlowCleaner: CleanupProvider {
     }
 }
 
+private struct SlowTranscriber: TranscriptionProvider {
+    let kind: STTProviderKind = .groq
+    func transcribe(wavData: Data) async throws -> String {
+        try await Task.sleep(nanoseconds: 5_000_000_000)
+        return "too late"
+    }
+}
+
+private struct FailingTranscriber: TranscriptionProvider {
+    let kind: STTProviderKind = .groq
+    func transcribe(wavData: Data) async throws -> String { throw ProviderError.timeout }
+}
+
+private struct BlankTranscriber: TranscriptionProvider {
+    let kind: STTProviderKind = .groq
+    func transcribe(wavData: Data) async throws -> String { "   " }
+}
+
+private struct GoodTranscriber: TranscriptionProvider {
+    let kind: STTProviderKind = .deepgram
+    func transcribe(wavData: Data) async throws -> String { "  accurate transcript  " }
+}
+
 final class PipelineTests: XCTestCase {
 
     func testCleanupTimeoutHelperFallsBackToNilOnFailure() async {
@@ -48,6 +71,32 @@ final class PipelineTests: XCTestCase {
             group.cancelAll()
             return first
         }
+    }
+
+    func testSTTDeadlineDoesNotStall() async {
+        let start = Date()
+        do {
+            _ = try await DictationPipeline.transcribeWithDeadline(
+                SlowTranscriber(), wavData: Data(), timeout: 0.1
+            )
+            XCTFail("Expected deadline error")
+        } catch {
+            XCTAssertLessThan(Date().timeIntervalSince(start), 1.0)
+        }
+    }
+
+    func testSTTFallsBackAfterProviderFailure() async throws {
+        let transcript = try await DictationPipeline.transcribeWithFallback(
+            wavData: Data(), primary: FailingTranscriber(), fallbacks: [GoodTranscriber()], timeout: 0.1
+        )
+        XCTAssertEqual(transcript, "accurate transcript")
+    }
+
+    func testSTTFallsBackAfterBlankResponse() async throws {
+        let transcript = try await DictationPipeline.transcribeWithFallback(
+            wavData: Data(), primary: BlankTranscriber(), fallbacks: [GoodTranscriber()], timeout: 0.1
+        )
+        XCTAssertEqual(transcript, "accurate transcript")
     }
 
     func testWavHeader() {

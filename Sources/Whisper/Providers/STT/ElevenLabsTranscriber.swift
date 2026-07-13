@@ -16,6 +16,7 @@ struct ElevenLabsTranscriber: TranscriptionProvider {
 
         var request = URLRequest(url: URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!)
         request.httpMethod = "POST"
+        request.timeoutInterval = 8
         request.setValue(key, forHTTPHeaderField: "xi-api-key")
         request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = body

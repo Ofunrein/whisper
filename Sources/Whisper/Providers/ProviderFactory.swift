@@ -16,6 +16,32 @@ enum ProviderFactory {
         }
     }
 
+    /// Fast, accuracy-preserving backup order. Only providers with a configured
+    /// key are considered; the selected provider always runs first. Local is not
+    /// an automatic fallback because spawning a model can make a cloud timeout worse.
+    static func fallbackTranscribers(for settings: AppSettings) -> [TranscriptionProvider] {
+        let order: [STTProviderKind] = [.deepgram, .groq, .elevenLabs, .openAI]
+        return order
+            .filter { $0 != settings.sttProvider && hasTranscriptionKey(for: $0) }
+            .map { kind in
+                var backup = settings
+                backup.sttProvider = kind
+                return transcriber(for: backup)
+            }
+    }
+
+    private static func hasTranscriptionKey(for kind: STTProviderKind) -> Bool {
+        let account: String?
+        switch kind {
+        case .groq: account = Keychain.groqKey
+        case .elevenLabs: account = Keychain.elevenLabsKey
+        case .deepgram: account = Keychain.deepgramKey
+        case .openAI: account = Keychain.openAIKey
+        case .localWhisper: return false
+        }
+        return account.flatMap(Keychain.get).map { !$0.isEmpty } ?? false
+    }
+
     static func cleaner(for settings: AppSettings) -> CleanupProvider {
         switch settings.cleanupProvider {
         case .groq:
@@ -44,6 +70,8 @@ enum ProviderFactory {
             )
         case .gemini:
             return GeminiCleanup(model: settings.geminiModel)
+        case .anthropic:
+            return AnthropicCleanup(model: settings.anthropicModel)
         case .ollama:
             return OllamaCleanup(baseURL: settings.ollamaBaseURL, model: settings.ollamaModel)
         }

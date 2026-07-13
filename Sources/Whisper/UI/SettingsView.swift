@@ -88,6 +88,7 @@ private struct APIKeysTab: View {
     @State private var gemini: String = ""
     @State private var cerebras: String = ""
     @State private var openAI: String = ""
+    @State private var anthropic: String = ""
     @State private var pendingClear: (title: String, text: Binding<String>, account: String)? = nil
     @State private var revealed: Set<String> = []
 
@@ -101,6 +102,7 @@ private struct APIKeysTab: View {
                     keyRow("Gemini", text: $gemini, account: Keychain.geminiKey)
                     keyRow("Cerebras", text: $cerebras, account: Keychain.cerebrasKey)
                     keyRow("OpenAI", text: $openAI, account: Keychain.openAIKey)
+                    keyRow("Claude", text: $anthropic, account: Keychain.anthropicKey)
                 }
                 .padding(8)
             }
@@ -169,6 +171,7 @@ private struct APIKeysTab: View {
         gemini = Keychain.get(Keychain.geminiKey) ?? ""
         cerebras = Keychain.get(Keychain.cerebrasKey) ?? ""
         openAI = Keychain.get(Keychain.openAIKey) ?? ""
+        anthropic = Keychain.get(Keychain.anthropicKey) ?? ""
     }
 }
 
@@ -216,6 +219,24 @@ private struct ProvidersTab: View {
                     }
 
                     Text(store.settings.sttProvider.isLocal ? "Local STT runs on this Mac." : "Cloud STT uses external API billing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        Text("STT deadline")
+                        Slider(
+                            value: Binding(
+                                get: { store.settings.effectiveSTTTimeoutSeconds },
+                                set: { store.settings.sttTimeoutSeconds = $0 }
+                            ),
+                            in: 3...20,
+                            step: 1
+                        )
+                        Text("\(Int(store.settings.effectiveSTTTimeoutSeconds))s")
+                            .frame(width: 32, alignment: .trailing)
+                            .monospacedDigit()
+                    }
+                    Text("On failure or timeout, Whisper tries configured cloud backups: Deepgram, Groq, ElevenLabs, then OpenAI.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -267,6 +288,8 @@ private struct ProvidersTab: View {
             ModelPicker(label: "Cerebras model", provider: .cerebras, selection: $store.settings.cerebrasModel)
         case .openAI:
             ModelPicker(label: "OpenAI cleanup model", provider: .openAI, selection: $store.settings.openAICleanupModel)
+        case .anthropic:
+            ModelPicker(label: "Claude model", provider: .anthropic, selection: $store.settings.anthropicModel)
         case .ollama:
             ModelPicker(label: "Ollama model", provider: .ollama, selection: $store.settings.ollamaModel)
         }
@@ -277,6 +300,7 @@ private struct ProvidersTab: View {
         store.settings.groqCleanupModel = AppSettings.defaultGroqCleanupModel
         store.settings.cerebrasModel = AppSettings.defaultCerebrasModel
         store.settings.openAICleanupModel = AppSettings.defaultOpenAICleanupModel
+        store.settings.anthropicModel = AppSettings.defaultAnthropicCleanupModel
         store.settings.ollamaModel = AppSettings.defaultOllamaModel
         store.settings.ollamaBaseURL = AppSettings.defaultOllamaBaseURL
     }
@@ -1114,6 +1138,11 @@ private struct ModelPicker: View {
             "o4-mini",
             "gpt-4o",
             "gpt-4.1",
+        ],
+        .anthropic: [
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-5-20250929",
+            "claude-opus-4-5-20251101",
         ],
         .ollama: [
             "llama3.2",
