@@ -99,9 +99,13 @@ final class OutputRouter {
     }
 
     private func pasteViaCommandV(targetPID: pid_t?) {
-        guard Permissions.accessibilityTrusted(prompt: true) else {
-            logPaste("blocked: Accessibility permission missing; prompted user")
-            NSLog("Whisper: Accessibility permission missing; prompted user")
+        // Never ask TCC to display its native prompt from the hot path. If the
+        // grant is missing, prompt:true would show the same modal after every
+        // dictation. Startup/settings own permission guidance; paste checks
+        // remain silent.
+        guard Permissions.accessibilityTrusted(prompt: false) else {
+            logPaste("blocked: Accessibility permission missing")
+            NSLog("Whisper: Accessibility permission missing; paste skipped")
             return
         }
 
