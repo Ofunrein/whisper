@@ -24,6 +24,7 @@ enum Keychain {
         "gemini": "GEMINI_API_KEY",
         "cerebras": "CEREBRAS_API_KEY",
         "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
     ]
 
     static let groqKey = "groq"
@@ -32,6 +33,7 @@ enum Keychain {
     static let geminiKey = "gemini"
     static let cerebrasKey = "cerebras"
     static let openAIKey = "openai"
+    static let anthropicKey = "anthropic"
 
     static func set(_ value: String, for account: String) {
         set(value, account: account)

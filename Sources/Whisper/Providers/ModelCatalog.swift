@@ -9,7 +9,7 @@ final class ModelCatalog: ObservableObject {
     static let shared = ModelCatalog()
 
     enum Provider: String, CaseIterable {
-        case gemini, groq, cerebras, openAI, ollama
+        case gemini, groq, cerebras, openAI, ollama, anthropic
     }
 
     @Published var models: [Provider: [String]] = [:]
@@ -122,6 +122,11 @@ final class ModelCatalog: ObservableObject {
         case .gemini:
             guard let key = Keychain.get("gemini") else { return [] }
             request = URLRequest(url: URL(string: "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=\(key)")!)
+        case .anthropic:
+            guard let key = Keychain.get("anthropic") else { return [] }
+            request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/models?limit=100")!)
+            request.setValue(key, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         case .ollama:
             let base = SettingsStore.shared.settings.ollamaBaseURL
             guard let url = URL(string: "\(base)/api/tags") else { return [] }
@@ -172,6 +177,11 @@ final class ModelCatalog: ObservableObject {
                         || l.contains("audio") || l.contains("realtime") || l.contains("transcribe")
                         || l.contains("tts") || l.contains("image") || l.contains("search")
                 }
+            }
+        case .anthropic:
+            // {"data":[{"id":"claude-...","type":"model"}]}
+            for m in json["data"] as? [[String: Any]] ?? [] {
+                if let id = m["id"] as? String { ids.append(id) }
             }
         }
         return ids.sorted()

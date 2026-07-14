@@ -170,7 +170,7 @@ final class DictationPipeline: ObservableObject {
             date: Date(),
             provider: settings.sttProvider.rawValue,
             transport: transport,
-            words: finalText.split(whereSeparator: \Character.isWhitespace).count,
+            words: finalText.split(whereSeparator: { $0.isWhitespace }).count,
             sttMs: sttMs,
             cleanupMs: cleanupMs,
             pasteMs: pasteMs,
@@ -247,7 +247,7 @@ final class DictationPipeline: ObservableObject {
     /// returns quickly, while URLs, code, names, numbers, vocabulary, and long
     /// dictation get enough time for the model to repair them correctly.
     static func cleanupDeadline(for text: String, settings: AppSettings) -> Double {
-        let words = text.split(whereSeparator: \Character.isWhitespace).count
+        let words = text.split(whereSeparator: { $0.isWhitespace }).count
         var recommended: Double
         switch words {
         case 0...12: recommended = 2.5
