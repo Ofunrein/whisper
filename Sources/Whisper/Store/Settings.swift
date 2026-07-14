@@ -326,7 +326,7 @@ struct AppSettings: Codable, Equatable {
         .appendingPathComponent("Library/Application Support/Whisper/models/ggml-base.en.bin")
         .path
 
-    var sttProvider: STTProviderKind = .groq
+    var sttProvider: STTProviderKind = .deepgram
     var cleanupProvider: CleanupProviderKind = .groq
     var cleanupEnabled: Bool = true
     var cleanupInstructions: String = defaultCleanupInstructions

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build Whisper.app (via make-app.sh) then package it as a drag-to-Applications DMG.
 # No Apple Developer signing/notarization involved -- the DMG carries whatever
-# codesign identity make-app.sh used (local dev cert, or ad-hoc as fallback).
+# stable local designated requirement make-app.sh embedded.
 # First launch on another Mac will still need right-click > Open (see README).
 set -euo pipefail
 cd "$(dirname "$0")/.."

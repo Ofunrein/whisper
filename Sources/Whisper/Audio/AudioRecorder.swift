@@ -19,6 +19,7 @@ final class AudioRecorder: ObservableObject {
     private let lock = NSLock()
     private var pcm = Data()
     private var recording = false
+    private var pcmChunkHandler: ((Data) -> Void)?
     private var engineRunning = false
     private var tapInstalled = false
     private var startTime: Date?
@@ -122,6 +123,12 @@ final class AudioRecorder: ObservableObject {
         peakLevel = 0
         lock.unlock()
         startSystemAudioIfEnabled()
+    }
+
+    func setPCMChunkHandler(_ handler: ((Data) -> Void)?) {
+        lock.lock()
+        pcmChunkHandler = handler
+        lock.unlock()
     }
 
     private func startSystemAudioIfEnabled() {
@@ -354,7 +361,9 @@ final class AudioRecorder: ObservableObject {
         let chunk = Data(bytes: channel[0], count: byteCount)
         lock.lock()
         pcm.append(chunk)
+        let handler = pcmChunkHandler
         lock.unlock()
+        handler?(chunk)
     }
 
     private func publishLevel(from buffer: AVAudioPCMBuffer) {

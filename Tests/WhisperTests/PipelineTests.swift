@@ -41,6 +41,47 @@ private struct GoodTranscriber: TranscriptionProvider {
 
 final class PipelineTests: XCTestCase {
 
+    func testLatencyPercentiles() {
+        let values = [10.0, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        XCTAssertEqual(LatencyMetrics.percentile(values, 0.50), 50)
+        XCTAssertEqual(LatencyMetrics.percentile(values, 0.95), 100)
+        XCTAssertEqual(LatencyMetrics.percentile([], 0.95), 0)
+    }
+
+    func testDeepgramStreamingResultParsing() throws {
+        let data = try JSONSerialization.data(withJSONObject: [
+            "type": "Results",
+            "is_final": true,
+            "speech_final": true,
+            "channel": ["alternatives": [["transcript": "  hello world  "]]],
+        ])
+        XCTAssertEqual(
+            DeepgramStreamingSession.parseResult(data),
+            .init(transcript: "hello world", isFinal: true, speechFinal: true)
+        )
+    }
+
+    func testLiveDeepgramStreamingWhenEnabled() async throws {
+        guard ProcessInfo.processInfo.environment["WHISPER_LIVE_STREAM_TEST"] == "1",
+              let path = ProcessInfo.processInfo.environment["WHISPER_LIVE_STREAM_WAV"] else {
+            throw XCTSkip("Set WHISPER_LIVE_STREAM_TEST=1 and WHISPER_LIVE_STREAM_WAV to run")
+        }
+        let wav = try Data(contentsOf: URL(fileURLWithPath: path))
+        XCTAssertGreaterThan(wav.count, 44)
+        let session = DeepgramStreamingSession()
+        session.start()
+        let pcm = Data(wav.dropFirst(44))
+        for offset in stride(from: 0, to: pcm.count, by: 3_200) {
+            let end = min(offset + 3_200, pcm.count)
+            session.push(Data(pcm[offset..<end]))
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let released = Date()
+        let transcript = try await session.finish()
+        XCTAssertFalse(transcript.isEmpty)
+        XCTAssertLessThan(Date().timeIntervalSince(released), 2.0)
+    }
+
     func testCleanupTimeoutHelperFallsBackToNilOnFailure() async {
         // Mirror the pipeline's race logic against a failing provider.
         let result = await race(cleaner: FailingCleaner(), timeout: 2)

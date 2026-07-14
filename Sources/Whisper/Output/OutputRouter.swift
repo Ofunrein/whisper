@@ -116,7 +116,7 @@ final class OutputRouter {
               targetPID > 0,
               let target = NSRunningApplication(processIdentifier: targetPID),
               target.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
-        target.activate(options: [.activateIgnoringOtherApps])
+        target.activate()
         logPaste("activate target=\(target.localizedName ?? "nil") pid=\(targetPID)")
     }
 
@@ -149,7 +149,7 @@ final class OutputRouter {
         let url = dir.appendingPathComponent("paste-debug.log")
         if let data = line.data(using: .utf8) {
             if FileManager.default.fileExists(atPath: url.path), let handle = try? FileHandle(forWritingTo: url) {
-                try? handle.seekToEnd()
+                _ = try? handle.seekToEnd()
                 try? handle.write(contentsOf: data)
                 try? handle.close()
             } else {

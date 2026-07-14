@@ -138,7 +138,7 @@ private struct APIKeysTab: View {
                 }
             }
             .textFieldStyle(.roundedBorder)
-            .onChange(of: text.wrappedValue) { newValue in
+            .onChange(of: text.wrappedValue) { _, newValue in
                 Keychain.set(newValue, for: account)
             }
             Button {

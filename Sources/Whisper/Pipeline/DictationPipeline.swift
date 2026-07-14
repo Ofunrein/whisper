@@ -12,6 +12,7 @@ final class DictationPipeline: ObservableObject {
     private var levelCancellable: AnyCancellable?
     private var busy = false
     private var pasteTargetPID: pid_t?
+    private var deepgramStream: DeepgramStreamingSession?
 
     var onStateChange: ((PillState) -> Void)?
 
@@ -20,6 +21,9 @@ final class DictationPipeline: ObservableObject {
             PillController.shared.setLevel(level)
             _ = self // keep self captured for lifetime parity
         }
+        Task.detached(priority: .utility) {
+            await ProviderWarmup.preconnectGroq()
+        }
     }
 
     // MARK: - Hotkey entry points
@@ -27,6 +31,16 @@ final class DictationPipeline: ObservableObject {
     func recordStart() {
         guard !busy else { return }
         pasteTargetPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let settings = SettingsStore.shared.settings
+        deepgramStream?.cancel()
+        deepgramStream = nil
+        recorder.setPCMChunkHandler(nil)
+        if settings.sttProvider == .deepgram, settings.recordSystemAudio != true {
+            let stream = DeepgramStreamingSession()
+            deepgramStream = stream
+            recorder.setPCMChunkHandler { [weak stream] chunk in stream?.push(chunk) }
+            stream.start()
+        }
         NSLog("Whisper: recordStart")
         recorder.prewarm()
         recorder.start()
@@ -37,7 +51,12 @@ final class DictationPipeline: ObservableObject {
 
     func recordStop() {
         guard !busy else { return }
+        let releasedAt = Date()
+        let stream = deepgramStream
+        deepgramStream = nil
+        recorder.setPCMChunkHandler(nil)
         guard let wav = recorder.stop() else {
+            stream?.cancel()
             NSLog("Whisper: recordStop -> no audio captured (too short or engine failed)")
             PlaybackDucker.restoreAfterRecording()
             SoundPlayer.playError()
@@ -53,7 +72,13 @@ final class DictationPipeline: ObservableObject {
         let settings = SettingsStore.shared.settings
         let pasteTargetPID = pasteTargetPID
         Task.detached(priority: .userInitiated) { [weak self] in
-            await self?.process(wav: wav, settings: settings, pasteTargetPID: pasteTargetPID)
+            await self?.process(
+                wav: wav,
+                settings: settings,
+                pasteTargetPID: pasteTargetPID,
+                deepgramStream: stream,
+                releasedAt: releasedAt
+            )
             guard let self else { return }
             await MainActor.run {
                 self.busy = false
@@ -64,19 +89,42 @@ final class DictationPipeline: ObservableObject {
 
     // MARK: - Processing
 
-    private func process(wav: Data, settings: AppSettings, pasteTargetPID: pid_t?) async {
+    private func process(
+        wav: Data,
+        settings: AppSettings,
+        pasteTargetPID: pid_t?,
+        deepgramStream: DeepgramStreamingSession?,
+        releasedAt: Date
+    ) async {
         // 1. Transcribe. A failed provider gets one or more already-configured
         // cloud backups, each bounded by the STT deadline; never leave a dictation
         // spinner waiting on the old 10-minute transport timeout.
         let raw: String
+        var transport = "batch"
         let sttStarted = Date()
         do {
-            raw = try await Self.transcribeWithFallback(
-                wavData: wav,
-                primary: ProviderFactory.transcriber(for: settings),
-                fallbacks: ProviderFactory.fallbackTranscribers(for: settings),
-                timeout: settings.effectiveSTTTimeoutSeconds
-            ).trimmingCharacters(in: .whitespacesAndNewlines)
+            if let deepgramStream {
+                do {
+                    raw = try await deepgramStream.finish()
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    transport = "streaming"
+                } catch {
+                    NSLog("Whisper: Deepgram stream failed (%@), using batch fallback", error.localizedDescription)
+                    raw = try await Self.transcribeWithFallback(
+                        wavData: wav,
+                        primary: ProviderFactory.transcriber(for: settings),
+                        fallbacks: ProviderFactory.fallbackTranscribers(for: settings),
+                        timeout: settings.effectiveSTTTimeoutSeconds
+                    ).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            } else {
+                raw = try await Self.transcribeWithFallback(
+                    wavData: wav,
+                    primary: ProviderFactory.transcriber(for: settings),
+                    fallbacks: ProviderFactory.fallbackTranscribers(for: settings),
+                    timeout: settings.effectiveSTTTimeoutSeconds
+                ).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             NSLog("Whisper: STT completed in %.0fms", Date().timeIntervalSince(sttStarted) * 1_000)
         } catch {
             NSLog("Whisper: transcription failed after %.0fms: \(error.localizedDescription)", Date().timeIntervalSince(sttStarted) * 1_000)
@@ -87,16 +135,20 @@ final class DictationPipeline: ObservableObject {
             return
         }
         guard !raw.isEmpty else { return }
+        let sttMs = Date().timeIntervalSince(sttStarted) * 1_000
 
         // 2. Optional cleanup, time-boxed; raw text on any failure.
+        let cleanupStarted = Date()
         let cleaned = settings.cleanupEnabled
             ? await cleanWithTimeout(raw, settings: settings)
             : nil
+        let cleanupMs = settings.cleanupEnabled ? Date().timeIntervalSince(cleanupStarted) * 1_000 : 0
         // 3. Vocabulary replacements always run, cleanup or not — they fix
         // STT mishears (e.g. a misheard name) the cleanup model may not catch.
         let finalText = VocabularyEngine.applyReplacements(cleaned ?? raw, vocabulary: settings.vocabulary)
 
         // 4. Output on the main thread (pasteboard + CGEvent).
+        let pasteStarted = Date()
         let appName = await MainActor.run { () -> String? in
             let target = pasteTargetPID.flatMap { NSRunningApplication(processIdentifier: $0) }
             let name = target?.localizedName ?? self.output.frontmostAppName()
@@ -112,6 +164,18 @@ final class DictationPipeline: ObservableObject {
             self.output.deliver(text: finalText, mode: settings.outputMode, keepOnClipboard: settings.keepOnClipboardAfterPaste, targetPID: pasteTargetPID)
             return name
         }
+        let pasteMs = Date().timeIntervalSince(pasteStarted) * 1_000
+
+        await LatencyMetrics.shared.record(DictationLatency(
+            date: Date(),
+            provider: settings.sttProvider.rawValue,
+            transport: transport,
+            words: finalText.split(whereSeparator: \Character.isWhitespace).count,
+            sttMs: sttMs,
+            cleanupMs: cleanupMs,
+            pasteMs: pasteMs,
+            releaseToPasteMs: Date().timeIntervalSince(releasedAt) * 1_000
+        ))
 
         // 5. History (off the hot path).
         var audioFileName: String? = nil
