@@ -6,53 +6,111 @@
     <Pivot Title="Whisper Settings" Margin="16">
 
         <PivotItem Header="API Keys">
-            <StackPanel Spacing="12" Margin="0,16,0,0">
-                <TextBlock Text="Groq API Key" FontWeight="SemiBold" />
-                <!--
-                    PasswordRevealMode="Peek" is WinUI's native reveal-password
-                    control; it already renders the eye-icon toggle button,
-                    so no hand-rolled icon/state is needed here. Same idea as
-                    the mac app's SecureField + eye button, just the platform-
-                    native version of it.
-                -->
-                <PasswordBox
-                    x:Name="GroqKeyBox"
-                    PasswordRevealMode="Peek"
-                    PlaceholderText="gsk_..."
-                    PasswordChanged="OnGroqKeyChanged" />
+            <ScrollViewer>
+                <StackPanel Spacing="12" Margin="0,16,0,0">
+                    <TextBlock Text="Groq API Key" FontWeight="SemiBold" />
+                    <!--
+                        PasswordRevealMode="Peek" is WinUI's native reveal-password
+                        control; it already renders the eye-icon toggle button,
+                        so no hand-rolled icon/state is needed here. Same idea as
+                        the mac app's SecureField + eye button, just the platform-
+                        native version of it. One PasswordBox per provider that
+                        needs a key -- Groq/OpenAI double as both an STT and a
+                        cleanup key (same account, same provider), matching the
+                        mac app's single Keychain entry per provider.
+                    -->
+                    <PasswordBox x:Name="GroqKeyBox" PasswordRevealMode="Peek" PlaceholderText="gsk_..." PasswordChanged="OnGroqKeyChanged" />
 
-                <TextBlock Text="OpenAI, Deepgram, ElevenLabs" Opacity="0.6" Margin="0,12,0,0" />
-                <TextBlock Text="Not wired up yet -- Groq is the only implemented provider on Windows so far."
-                           Opacity="0.6" TextWrapping="Wrap" />
-            </StackPanel>
+                    <TextBlock Text="OpenAI API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <PasswordBox x:Name="OpenAIKeyBox" PasswordRevealMode="Peek" PlaceholderText="sk-..." PasswordChanged="OnOpenAIKeyChanged" />
+
+                    <TextBlock Text="Deepgram API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <PasswordBox x:Name="DeepgramKeyBox" PasswordRevealMode="Peek" PasswordChanged="OnDeepgramKeyChanged" />
+
+                    <TextBlock Text="ElevenLabs API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <PasswordBox x:Name="ElevenLabsKeyBox" PasswordRevealMode="Peek" PasswordChanged="OnElevenLabsKeyChanged" />
+
+                    <TextBlock Text="Cerebras API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <PasswordBox x:Name="CerebrasKeyBox" PasswordRevealMode="Peek" PasswordChanged="OnCerebrasKeyChanged" />
+
+                    <TextBlock Text="Gemini API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <PasswordBox x:Name="GeminiKeyBox" PasswordRevealMode="Peek" PasswordChanged="OnGeminiKeyChanged" />
+
+                    <TextBlock Text="Anthropic (Claude) API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <PasswordBox x:Name="AnthropicKeyBox" PasswordRevealMode="Peek" PlaceholderText="sk-ant-..." PasswordChanged="OnAnthropicKeyChanged" />
+
+                    <TextBlock Text="Ollama runs locally and needs no API key -- see the Cleanup Provider section on the Output tab for its base URL/model fields."
+                               Opacity="0.6" TextWrapping="Wrap" Margin="0,12,0,0" />
+                </StackPanel>
+            </ScrollViewer>
         </PivotItem>
 
         <PivotItem Header="Output">
-            <StackPanel Spacing="12" Margin="0,16,0,0">
-                <ToggleSwitch x:Name="CleanupToggle" Header="Clean up transcript" Toggled="OnCleanupToggled" />
-                <ToggleSwitch x:Name="KeepClipboardToggle" Header="Keep transcript on clipboard after paste" Toggled="OnKeepClipboardToggled" />
-                <ToggleSwitch x:Name="SaveAudioToggle" Header="Save audio recordings" Toggled="OnSaveAudioToggled" />
-                <ToggleSwitch x:Name="SoundEffectsToggle" Header="Play sound when recording starts/stops" Toggled="OnSoundEffectsToggled" />
+            <ScrollViewer>
+                <StackPanel Spacing="12" Margin="0,16,0,0">
+                    <TextBlock Text="Speech-to-Text Provider" FontWeight="SemiBold" />
+                    <ComboBox x:Name="SttProviderPicker" SelectionChanged="OnSttProviderChanged" Width="260">
+                        <ComboBoxItem Content="Groq (whisper-large-v3-turbo)" Tag="Groq" />
+                        <ComboBoxItem Content="OpenAI (whisper-1)" Tag="OpenAI" />
+                        <ComboBoxItem Content="Deepgram (Nova-3)" Tag="Deepgram" />
+                        <ComboBoxItem Content="ElevenLabs (Scribe v2)" Tag="ElevenLabs" />
+                    </ComboBox>
+                    <TextBlock Text="Local on-device transcription (whisper.cpp, matching the mac app's Local Whisper option) is not available on Windows yet -- all providers above are cloud APIs and need the matching key on the API Keys tab."
+                               Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
 
-                <StackPanel Spacing="4" Margin="0,12,0,0">
-                    <ToggleSwitch x:Name="SystemAudioToggle" Header="Record system audio" Toggled="OnSystemAudioToggled" />
-                    <TextBlock
-                        Text="Mixes in audio from the app you're capturing (e.g. a call) alongside your mic. Off by default."
-                        Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+                    <ToggleSwitch x:Name="CleanupToggle" Header="Clean up transcript" Toggled="OnCleanupToggled" Margin="0,12,0,0" />
+
+                    <TextBlock Text="Cleanup Provider" FontWeight="SemiBold" Margin="0,4,0,0" />
+                    <ComboBox x:Name="CleanupProviderPicker" SelectionChanged="OnCleanupProviderChanged" Width="260">
+                        <ComboBoxItem Content="None" Tag="None" />
+                        <ComboBoxItem Content="Groq" Tag="Groq" />
+                        <ComboBoxItem Content="Cerebras" Tag="Cerebras" />
+                        <ComboBoxItem Content="OpenAI" Tag="OpenAI" />
+                        <ComboBoxItem Content="Gemini" Tag="Gemini" />
+                        <ComboBoxItem Content="Ollama (local)" Tag="Ollama" />
+                        <ComboBoxItem Content="Anthropic (Claude)" Tag="Anthropic" />
+                    </ComboBox>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="OllamaBaseUrlBox" PlaceholderText="http://localhost:11434" Width="200" TextChanged="OnOllamaBaseUrlChanged" />
+                        <TextBox x:Name="OllamaModelBox" PlaceholderText="llama3.2" Width="140" TextChanged="OnOllamaModelChanged" />
+                    </StackPanel>
+                    <TextBlock Text="Base URL and model apply only when Cleanup Provider is set to Ollama." Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+
+                    <ToggleSwitch x:Name="KeepClipboardToggle" Header="Keep transcript on clipboard after paste" Toggled="OnKeepClipboardToggled" Margin="0,12,0,0" />
+                    <ToggleSwitch x:Name="SaveAudioToggle" Header="Save audio recordings" Toggled="OnSaveAudioToggled" />
+                    <ToggleSwitch x:Name="SoundEffectsToggle" Header="Play sound when recording starts/stops" Toggled="OnSoundEffectsToggled" />
+
+                    <StackPanel Spacing="4" Margin="0,12,0,0">
+                        <ToggleSwitch x:Name="SystemAudioToggle" Header="Record system audio" Toggled="OnSystemAudioToggled" />
+                        <TextBlock
+                            Text="Mixes in audio from the app you're capturing (e.g. a call) alongside your mic. Off by default."
+                            Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
+            </ScrollViewer>
         </PivotItem>
 
         <PivotItem Header="Hotkey">
             <StackPanel Spacing="12" Margin="0,16,0,0">
-                <TextBlock Text="Hold this key to record:" FontWeight="SemiBold" />
+                <TextBlock Text="Record with:" FontWeight="SemiBold" />
                 <ComboBox x:Name="HotkeyPicker" SelectionChanged="OnHotkeyPickerChanged" Width="220">
                     <ComboBoxItem Content="Right Ctrl" Tag="RightControl" />
                     <ComboBoxItem Content="Right Alt" Tag="RightAlt" />
                     <ComboBoxItem Content="Right Shift" Tag="RightShift" />
                     <ComboBoxItem Content="Middle Mouse Button" Tag="MiddleMouse" />
+                    <ComboBoxItem Content="Mouse Button 4 (Back / XButton1)" Tag="XButton1" />
+                    <ComboBoxItem Content="Mouse Button 5 (Forward / XButton2)" Tag="XButton2" />
                 </ComboBox>
-                <TextBlock Text="Full glyph-based hotkey recorder (matching the mac app's visual picker) is a follow-up -- this is a fixed preset list for now."
+                <TextBlock Text="Full glyph-based hotkey recorder (matching the mac app's visual picker) is a follow-up -- this is a fixed preset list for now. Mouse buttons 4/5 are reported reliably by Windows' raw input for standard mice, but some gaming-mouse vendor drivers remap them to macros before they reach this hook -- see windows/README.md."
+                           Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+
+                <TextBlock Text="Trigger Style" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <ComboBox x:Name="TriggerStylePicker" SelectionChanged="OnTriggerStylePickerChanged" Width="220">
+                    <ComboBoxItem Content="Hold (record while held down)" Tag="Hold" />
+                    <ComboBoxItem Content="Toggle (press to start, press again to stop)" Tag="Toggle" />
+                </ComboBox>
+                <TextBlock Text="Toggle mode also shows a click-to-stop indicator near the bottom of the screen while recording, since there's no key held down to release."
                            Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
             </StackPanel>
         </PivotItem>

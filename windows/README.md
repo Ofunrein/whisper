@@ -62,16 +62,45 @@ anyway.
 
 ## What's actually wired up vs. stubbed
 
-- **STT/cleanup**: only Groq (`Providers/GroqSttProvider.cs`,
-  `GroqCleanupProvider.cs`). OpenAI/Deepgram/ElevenLabs exist as enum cases
-  in `AppSettings` so the settings file has room for them, but there's no
-  implementation yet -- same interfaces (`ISttProvider`/`ICleanupProvider`)
-  the mac app effectively mirrors, so adding one is a new class, not a
-  redesign.
+- **STT**: Groq, OpenAI, Deepgram, ElevenLabs are all implemented
+  (`Providers/GroqSttProvider.cs`, `OpenAISttProvider.cs`,
+  `DeepgramSttProvider.cs`, `ElevenLabsSttProvider.cs`), matching the mac
+  app's cloud providers. `LocalWhisper` (on-device whisper.cpp) is
+  deliberately **not** ported -- it needs a bundled native inference
+  engine and model-download/management story (see
+  `Sources/Whisper/Providers/STT/LocalWhisperTranscriber.swift` +
+  `LocalWhisperDownloader.swift` on the mac side), which is a materially
+  bigger lift than an HTTP client class and is out of scope here. It's a
+  reasonable follow-up if/when Windows on-device inference (e.g. via
+  whisper.cpp's own Windows build, or ONNX Runtime) becomes a priority.
+- **Cleanup**: Groq, Cerebras, OpenAI (via the shared
+  `Providers/OpenAiCompatCleanupProvider.cs`, since all three share the
+  OpenAI chat-completions request/response shape -- mirrors
+  `OpenAICompatCleanup.swift`'s DRY approach instead of one
+  copy-pasted class per provider), plus dedicated `GeminiCleanupProvider.cs`,
+  `OllamaCleanupProvider.cs` (local, no key), and
+  `AnthropicCleanupProvider.cs` (Messages API, `x-api-key` +
+  `anthropic-version` headers, `content[0].text` response shape). All
+  routed through `Providers/ProviderFactory.cs`, the Windows analogue of
+  `ProviderFactory.swift`.
+- **Settings UI**: API Keys tab has one field per provider that needs a
+  key (Groq, OpenAI, Deepgram, ElevenLabs, Cerebras, Gemini, Anthropic);
+  Output tab has an STT provider picker and a cleanup provider picker
+  (plus Ollama base URL/model fields, shown regardless of selection --
+  only meaningful when Ollama is selected).
 - **Hotkey picker**: fixed preset list (Right Ctrl / Right Alt / Right
-  Shift / middle mouse). The mac app's visual glyph-based hotkey recorder
-  (arbitrary key capture + live glyph rendering) is not ported -- that's a
-  meaningfully sized follow-up on its own.
+  Shift / middle mouse / XButton1 / XButton2) plus a Hold/Toggle trigger
+  style picker (`HotkeyBinding.Style`, mirroring the mac app's
+  `HotkeyTriggerStyle`). The mac app's visual glyph-based hotkey recorder
+  (arbitrary key capture + live glyph rendering) is still not ported --
+  that's a meaningfully sized follow-up on its own.
+- **Recording indicator**: `Views/RecordingIndicatorWindow.xaml` is a
+  small always-on-top "Recording -- click to stop" affordance shown while
+  recording, wired to the same stop path the hotkey release (Hold style)
+  or second press (Toggle style) already calls. It's a functional
+  subset of the mac app's `PillIndicator.swift` -- no waveform, no
+  drag-to-reposition, no snap grid -- since porting the full floating
+  pill visual is a separate, much bigger UI pass.
 - **Vocabulary tab**: add/list only, no inline edit/reorder yet (the mac
   app's vocabulary tab got that treatment in an earlier pass; same feature
   gap here).
@@ -98,8 +127,18 @@ ships.
 
 ## Known gaps to check first when it's actually running
 
-- `HotkeyManager` doesn't yet distinguish which XButton fired reliably
-  across all mice/drivers -- worth a real hardware test.
+- `HotkeyManager`'s `WH_MOUSE_LL` hook does read `MSLLHOOKSTRUCT.mouseData`'s
+  high-order word to tell XBUTTON1 apart from XBUTTON2 on `WM_XBUTTONDOWN`/
+  `WM_XBUTTONUP` (that's the documented Win32 convention, and the code
+  already does it -- see `MouseHookCallback`), and the Settings Hotkey tab
+  now exposes both as separate picker entries. What's still genuinely
+  unverified without hardware: some gaming-mouse vendor drivers (Logitech
+  Options+, Razer Synapse, etc.) intercept side buttons before they ever
+  generate a real `WM_XBUTTONDOWN`/`UP` at the Win32 level -- they remap
+  them to macros/keystrokes instead, in which case this hook never sees
+  them regardless of the disambiguation logic being correct. That failure
+  mode needs a real mouse + real vendor driver to observe; it can't be
+  reasoned about further from source alone.
 - No notarization/code-signing story here either, matching the mac app's
   current unsigned distribution -- Windows will show a SmartScreen warning
   on first run until that's addressed (or not, if that's an accepted

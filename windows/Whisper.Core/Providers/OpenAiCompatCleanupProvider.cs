@@ -4,28 +4,33 @@ using System.Text.Json;
 
 namespace Whisper.Core.Providers;
 
-/// Groq's OpenAI-compatible chat completions endpoint, used for the
-/// optional cleanup pass. Matches AppSettings.DefaultGroqCleanupModel's
-/// mac-side default (openai/gpt-oss-20b).
-public sealed class GroqCleanupProvider : ICleanupProvider
+/// Reusable OpenAI-chat-completions-shaped cleanup provider for Groq,
+/// Cerebras, and OpenAI -- they all expose the same
+/// POST {baseUrl} with {model, messages, temperature} -> choices[0].message.content
+/// shape. Mirrors Sources/Whisper/Providers/Cleanup/OpenAICompatCleanup.swift's
+/// DRY approach instead of one copy-pasted class per provider.
+public sealed class OpenAiCompatCleanupProvider : ICleanupProvider
 {
-    private const string Endpoint = "https://api.groq.com/openai/v1/chat/completions";
-    private const string Model = "openai/gpt-oss-20b";
-
     private readonly HttpClient _http;
+    private readonly string _baseUrl;
+    private readonly string _model;
     private readonly string _apiKey;
+    private readonly string _providerLabel;
 
-    public GroqCleanupProvider(HttpClient http, string apiKey)
+    public OpenAiCompatCleanupProvider(HttpClient http, string baseUrl, string model, string apiKey, string providerLabel)
     {
         _http = http;
+        _baseUrl = baseUrl;
+        _model = model;
         _apiKey = apiKey;
+        _providerLabel = providerLabel;
     }
 
     public async Task<string> CleanupAsync(string rawTranscript, string instructions, CancellationToken cancellationToken)
     {
         var payload = new
         {
-            model = Model,
+            model = _model,
             messages = new[]
             {
                 new { role = "system", content = instructions },
@@ -34,7 +39,7 @@ public sealed class GroqCleanupProvider : ICleanupProvider
             temperature = 0.2,
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)
+        using var request = new HttpRequestMessage(HttpMethod.Post, _baseUrl)
         {
             Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
         };
@@ -42,11 +47,10 @@ public sealed class GroqCleanupProvider : ICleanupProvider
 
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            using var response = await _http.SendAsync(request, cts.Token);
+            using var response = await _http.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync(cts.Token);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(json);
             var cleaned = doc.RootElement
                 .GetProperty("choices")[0]
@@ -61,4 +65,10 @@ public sealed class GroqCleanupProvider : ICleanupProvider
             return rawTranscript;
         }
     }
+
+    /// _providerLabel is currently unused beyond documentation/future error
+    /// surfacing (mac's equivalent throws ProviderError.missingKey(providerLabel)
+    /// before ever making the request; this class matches Groq's existing
+    /// catch-and-return-raw behavior instead, so the label has no throw site yet).
+    public string ProviderLabel => _providerLabel;
 }

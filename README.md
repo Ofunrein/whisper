@@ -52,7 +52,7 @@ Quick right-clicks pass through to normal context menus. Rapid double right-clic
 | Stage | Options | Default |
 |---|---|---|
 | Speech-to-text | Groq Whisper, ElevenLabs Scribe, Deepgram Nova, OpenAI, local whisper.cpp | Groq |
-| Cleanup | Groq, Cerebras, Gemini, Ollama, OpenAI | Groq |
+| Cleanup | Groq, Cerebras, Gemini, Ollama, OpenAI, Claude | Groq |
 
 Cleanup is optional. If cleanup fails, times out, or has no key, Whisper pastes the raw transcript instead.
 

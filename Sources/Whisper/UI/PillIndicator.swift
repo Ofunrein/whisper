@@ -15,12 +15,18 @@ final class PillLevelModel: ObservableObject {
     @Published var state: PillState = .collapsed
     @Published var errorFlash: Bool = false
     @Published var isHovering: Bool = false
+    @Published var isPressed: Bool = false
 }
 
 /// Owns a borderless, non-activating floating panel that shows dictation status,
 /// SuperWhisper-style, docked near the bottom of the screen.
 final class PillController: NSObject {
     static let shared = PillController()
+
+    /// Fired when the user clicks the pill while it's recording — the
+    /// SuperWhisper-style tap-to-stop affordance. The app delegate wires
+    /// this to the same stop path the hotkey release/toggle uses.
+    var onStopClicked: (() -> Void)?
 
     private var panel: NSPanel!
     private let model = PillLevelModel()
@@ -73,7 +79,9 @@ final class PillController: NSObject {
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = false
 
-        let hosting = NSHostingView(rootView: PillContentView(model: model))
+        let hosting = NSHostingView(rootView: PillContentView(model: model, onStopClicked: { [weak self] in
+            self?.onStopClicked?()
+        }))
         hosting.frame = NSRect(origin: .zero, size: size)
         panel.contentView = hosting
 
@@ -360,34 +368,79 @@ final class PillController: NSObject {
 /// fill transition (not a colored dot) is what signals "it's recording".
 private struct PillContentView: View {
     @ObservedObject var model: PillLevelModel
+    /// SuperWhisper-style tap-to-stop: while recording, clicking the pill
+    /// stops the same way releasing/toggling the hotkey does.
+    var onStopClicked: () -> Void
 
     private var isFilled: Bool {
         model.state == .recording || model.state == .processing
     }
+
+    private var isClickToStop: Bool { model.state == .recording }
 
     var body: some View {
         ZStack {
             Capsule()
                 .fill(model.errorFlash ? Color.red.opacity(0.75) : Color.black.opacity(isFilled ? 0.88 : 0.35))
             Capsule()
-                .strokeBorder(Color.white.opacity(model.isHovering ? 0.7 : (isFilled ? 0.12 : 0.4)), lineWidth: model.isHovering ? 1.75 : 1.25)
+                .strokeBorder(
+                    isClickToStop && model.isHovering
+                        ? Color.red.opacity(0.85)
+                        : Color.white.opacity(model.isHovering ? 0.7 : (isFilled ? 0.12 : 0.4)),
+                    lineWidth: model.isHovering ? 1.75 : 1.25
+                )
             switch model.state {
             case .collapsed:
                 EmptyView()
             case .idle:
                 IdleDotsView()
             case .recording:
-                WaveformView(level: model.level)
-                    .padding(.horizontal, 12)
+                if model.isHovering {
+                    // Hovering while recording swaps the waveform for an
+                    // explicit stop affordance (SuperWhisper shows a stop
+                    // square) so the click target's purpose is unambiguous,
+                    // rather than relying on cursor/tooltip alone.
+                    StopSquareView()
+                } else {
+                    WaveformView(level: model.level)
+                        .padding(.horizontal, 12)
+                }
             case .processing:
                 ProcessingSpinnerView()
             }
         }
         .compositingGroup()
         .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 2)
-        .scaleEffect(model.isHovering ? 1.06 : 1.0)
+        .scaleEffect(model.isHovering ? 1.06 : (model.isPressed ? 0.94 : 1.0))
         .animation(.easeOut(duration: 0.15), value: model.isHovering)
+        .animation(.easeOut(duration: 0.08), value: model.isPressed)
         .background(HoverTrackingView(isHovering: $model.isHovering))
+        // Larger-than-visual hit target: the collapsed/recording capsule is
+        // small, so clicking near it (not just exactly on the fill) still
+        // registers as a stop request, matching SuperWhisper's forgiving
+        // click zone.
+        .contentShape(Rectangle())
+        .padding(isClickToStop ? -8 : 0)
+        .onTapGesture {
+            guard isClickToStop else { return }
+            onStopClicked()
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in if isClickToStop { model.isPressed = true } }
+                .onEnded { _ in model.isPressed = false }
+        )
+        .help(isClickToStop ? "Click to stop recording" : "")
+    }
+}
+
+/// Stop affordance shown on hover while recording — a simple filled square,
+/// the universal "stop" glyph, sized to read clearly at pill scale.
+private struct StopSquareView: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(Color.white.opacity(0.95))
+            .frame(width: 10, height: 10)
     }
 }
 

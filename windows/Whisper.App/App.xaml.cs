@@ -21,7 +21,15 @@ public partial class App : Application
     private readonly AudioRecorder _recorder = new();
     private readonly HttpClient _http = new();
     private readonly TrayIcon _tray = new();
+    private readonly RecordingIndicatorWindow _indicator = new();
     private SettingsWindow? _settingsWindow;
+
+    /// Tracks recording state for Toggle-style bindings, where HotkeyManager
+    /// only reports the down-transition (RecordingToggled) and expects the
+    /// consumer to decide start-vs-stop itself. Hold-style bindings don't
+    /// need this -- RecordingStarted/RecordingStopped already map 1:1 to
+    /// down/up.
+    private bool _isRecording;
 
     public App()
     {
@@ -35,7 +43,10 @@ public partial class App : Application
             : HotkeyBinding.DefaultRightControl();
         _hotkeys.RecordingStarted += OnRecordingStarted;
         _hotkeys.RecordingStopped += OnRecordingStopped;
+        _hotkeys.RecordingToggled += OnRecordingToggled;
         _hotkeys.Start();
+
+        _indicator.StopRequested += OnIndicatorStopRequested;
 
         _tray.SettingsRequested += ShowSettings;
         _tray.QuitRequested += () => Environment.Exit(0);
@@ -86,29 +97,63 @@ public partial class App : Application
 
     private void OnRecordingStarted()
     {
+        _isRecording = true;
         _recorder.RecordSystemAudio = _settings.Settings.RecordSystemAudio;
         _recorder.Start(_settings.Settings.PreferredInputDeviceId);
+        _indicator.ShowIndicator();
+    }
+
+    /// Toggle-style bindings only fire on the down-transition -- the first
+    /// press starts recording, the second stops it. Hold-style bindings
+    /// don't route through here at all (RecordingStarted/RecordingStopped
+    /// already fire directly from HotkeyManager's down/up tracking).
+    private void OnRecordingToggled()
+    {
+        if (_isRecording) OnRecordingStopped();
+        else OnRecordingStarted();
+    }
+
+    /// Wired to the indicator's click -- the same stop path a released
+    /// hold-hotkey or a second toggle-hotkey press already triggers. Lets
+    /// users stop a recording with the mouse instead of only via the
+    /// keyboard/mouse-button binding (useful for Toggle style especially,
+    /// where there's otherwise no on-screen way to tell it's still live).
+    private void OnIndicatorStopRequested()
+    {
+        if (_isRecording) OnRecordingStopped();
     }
 
     private async void OnRecordingStopped()
     {
+        _isRecording = false;
+        _indicator.HideIndicator();
+
         var wav = _recorder.Stop();
         if (wav == null) return; // silence gate -- nothing worth transcribing
 
         if (_settings.Settings.SaveAudio)
             await SaveRecordingAsync(wav);
 
-        var apiKey = CredentialStore.GetApiKey("groq");
-        if (string.IsNullOrEmpty(apiKey)) return; // no key configured -- surface via tray balloon in a follow-up pass
+        var sttKind = _settings.Settings.SttProvider;
+        var sttKey = CredentialStore.GetApiKey(ProviderFactory.KeyAccountFor(sttKind));
+        if (string.IsNullOrEmpty(sttKey)) return; // no key configured -- surface via tray balloon in a follow-up pass
 
-        ISttProvider stt = new GroqSttProvider(_http, apiKey);
+        var stt = ProviderFactory.CreateSttProvider(sttKind, _http, sttKey);
         var text = await stt.TranscribeAsync(wav, CancellationToken.None);
 
         if (_settings.Settings.CleanupEnabled)
         {
-            ICleanupProvider cleanup = new GroqCleanupProvider(_http, apiKey);
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_settings.Settings.CleanupTimeoutSeconds));
-            text = await cleanup.CleanupAsync(text, _settings.Settings.CleanupInstructions, cts.Token);
+            var cleanup = ProviderFactory.CreateCleanupProvider(
+                _settings.Settings.CleanupProvider,
+                _http,
+                _settings.Settings,
+                account => CredentialStore.GetApiKey(account));
+
+            if (cleanup != null)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_settings.Settings.CleanupTimeoutSeconds));
+                text = await cleanup.CleanupAsync(text, _settings.Settings.CleanupInstructions, cts.Token);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(text)) return;

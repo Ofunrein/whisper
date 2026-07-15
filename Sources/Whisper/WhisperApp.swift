@@ -192,6 +192,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.onRecordStop = { [weak self] in self?.pipeline.recordStop() }
         hotkeys.start()
 
+        // Tap-to-stop: clicking the pill while recording stops the same way
+        // a hotkey release/toggle does. Reset the hotkey monitor's hold/toggle
+        // bookkeeping first so a key released afterward (or the next toggle
+        // press) doesn't fire a stray, out-of-sync start/stop.
+        PillController.shared.onStopClicked = { [weak self] in
+            self?.hotkeys.forceStop()
+            self?.pipeline.recordStop()
+        }
+
         // Cmd+Shift+Z: restore the clipboard to what it was before the last
         // dictation paste. Deliberately not Cmd+Z — that's the universal
         // system undo shortcut and must never be hijacked globally.

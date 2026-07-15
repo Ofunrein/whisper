@@ -81,6 +81,24 @@ final class HotkeyMonitor {
         if recording { recording = false; fire(start: false) }
     }
 
+    /// External stop request (e.g. clicking the pill) that didn't come from
+    /// the monitored hotkey/mouse edges themselves. Resets the same
+    /// hold/toggle bookkeeping `updateBindings` resets on a settings change
+    /// — a hold-style key released afterward, or the next toggle press,
+    /// would otherwise desync against state the monitor thinks is still
+    /// live. Deliberately does not call `fire()`/`onRecordStop`: the caller
+    /// already knows it's stopping (that's why it's calling this) and is
+    /// expected to invoke the actual stop path itself, so this can't ever
+    /// produce a double-stop.
+    func forceStop() {
+        guard recording else { return }
+        recording = false
+        holdIndex = nil
+        rightClickHoldTimer?.cancel()
+        rightClickHoldTimer = nil
+        rightClickHeld = false
+    }
+
     // MARK: - Event handling
 
     private func handle(_ event: NSEvent) {
