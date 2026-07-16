@@ -6,6 +6,7 @@ final class PlaceholderTests: XCTestCase {
         let s = AppSettings()
         XCTAssertEqual(s.sttProvider, .deepgram)
         XCTAssertTrue(s.cleanupEnabled)
+        XCTAssertEqual(s.rightClickHoldThresholdMs, 150)
         XCTAssertEqual(s.outputMode, .pasteAtCursor)
         XCTAssertTrue(s.cleanupInstructions.contains("Output ONLY the cleaned text"))
     }

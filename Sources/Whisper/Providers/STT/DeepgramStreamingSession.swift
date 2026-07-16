@@ -69,10 +69,14 @@ final class DeepgramStreamingSession: @unchecked Sendable {
         audioContinuation.finish()
         await task?.value
         let (error, transcript, interim) = snapshot()
-        if let error { throw error }
         let result = transcript.isEmpty ? interim : transcript
-        guard !result.isEmpty else { throw ProviderError.badResponse("Deepgram stream returned no transcript") }
-        return result
+        // Deepgram normally closes the socket immediately after CloseStream.
+        // URLSession can surface that normal close as an error after the final
+        // Results frame arrived. Keep the usable streaming transcript instead
+        // of discarding it and paying for a slow batch retry.
+        if !result.isEmpty { return result }
+        if let error { throw error }
+        throw ProviderError.badResponse("Deepgram stream returned no transcript")
     }
 
     func cancel() {

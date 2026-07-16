@@ -10,7 +10,8 @@ final class DictationPipeline: ObservableObject {
     let recorder = AudioRecorder()
     private let output = OutputRouter()
     private var levelCancellable: AnyCancellable?
-    private var busy = false
+    private var isRecording = false
+    private var processingCount = 0
     private var pasteTargetPID: pid_t?
     private var deepgramStream: DeepgramStreamingSession?
 
@@ -29,7 +30,8 @@ final class DictationPipeline: ObservableObject {
     // MARK: - Hotkey entry points
 
     func recordStart() {
-        guard !busy else { return }
+        guard !isRecording else { return }
+        isRecording = true
         pasteTargetPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let settings = SettingsStore.shared.settings
         deepgramStream?.cancel()
@@ -50,7 +52,8 @@ final class DictationPipeline: ObservableObject {
     }
 
     func recordStop() {
-        guard !busy else { return }
+        guard isRecording else { return }
+        isRecording = false
         let releasedAt = Date()
         let stream = deepgramStream
         deepgramStream = nil
@@ -60,13 +63,13 @@ final class DictationPipeline: ObservableObject {
             NSLog("Whisper: recordStop -> no audio captured (too short or engine failed)")
             PlaybackDucker.restoreAfterRecording()
             SoundPlayer.playError()
-            onStateChange?(.idle)
+            onStateChange?(processingCount == 0 ? .idle : .processing)
             return
         }
         NSLog("Whisper: recordStop -> %d bytes captured", wav.count)
         PlaybackDucker.restoreAfterRecording()
         SoundPlayer.playStop()
-        busy = true
+        processingCount += 1
         onStateChange?(.processing)
 
         let settings = SettingsStore.shared.settings
@@ -81,8 +84,10 @@ final class DictationPipeline: ObservableObject {
             )
             guard let self else { return }
             await MainActor.run {
-                self.busy = false
-                self.onStateChange?(.idle)
+                self.processingCount = max(0, self.processingCount - 1)
+                if !self.isRecording && self.processingCount == 0 {
+                    self.onStateChange?(.idle)
+                }
             }
         }
     }

@@ -346,7 +346,7 @@ struct AppSettings: Codable, Equatable {
     var soundSet: SoundSet = .softChime
     var preferredInputDevice: String? = nil  // nil = system default mic
     var bindings: [HotkeyBinding] = [.defaultRightCommand]
-    var rightClickHoldThresholdMs: Double = 600
+    var rightClickHoldThresholdMs: Double = 150
     var geminiModel: String = defaultGeminiModel
     var groqCleanupModel: String = defaultGroqCleanupModel
     var cerebrasModel: String = defaultCerebrasModel
@@ -393,7 +393,18 @@ final class SettingsStore: ObservableObject {
                     decoded.cleanupTimeoutSeconds = 8
                 }
             }
+            // Old builds defaulted right-click hold to 600ms, then 350ms.
+            // Both feel laggy for push-to-talk. Migrate those shipped values;
+            // lower explicit values remain untouched.
+            if decoded.rightClickHoldThresholdMs >= 350 {
+                decoded.rightClickHoldThresholdMs = 150
+            }
             settings = decoded
+            // Property observers do not run during initialization, so persist
+            // migrations explicitly instead of repeating them every launch.
+            if let migrated = try? JSONEncoder().encode(decoded) {
+                UserDefaults.standard.set(migrated, forKey: defaultsKey)
+            }
         } else {
             settings = AppSettings()
         }
