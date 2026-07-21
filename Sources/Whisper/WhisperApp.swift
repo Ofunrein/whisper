@@ -119,6 +119,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardRestoreMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Whisper is a menu-bar hotkey service. With no normal app window,
+        // macOS can otherwise treat it as idle and terminate it in the
+        // background, leaving every trigger dead until the next relaunch.
+        ProcessInfo.processInfo.disableAutomaticTermination("Listening for dictation hotkeys")
+        ProcessInfo.processInfo.disableSuddenTermination()
+
         checkPermissions()
         Keychain.bootstrapFromEnvironment()
         Keychain.importFromLoginShellEnv()

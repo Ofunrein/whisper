@@ -26,5 +26,7 @@
     <string>Whisper can optionally mix in system audio (e.g. a call) alongside your mic. This is off by default and only used if you enable it in Settings.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>LSMultipleInstancesProhibited</key>
+    <true/>
 </dict>
 </plist>
