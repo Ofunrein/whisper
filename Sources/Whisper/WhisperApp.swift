@@ -117,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastInputDevice: String?
     private var lastPillScale: Double = 1.0
     private var clipboardRestoreMonitor: Any?
+    private var keepAliveActivity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Whisper is a menu-bar hotkey service. With no normal app window,
@@ -124,6 +125,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // background, leaving every trigger dead until the next relaunch.
         ProcessInfo.processInfo.disableAutomaticTermination("Listening for dictation hotkeys")
         ProcessInfo.processInfo.disableSuddenTermination()
+        keepAliveActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.automaticTerminationDisabled, .suddenTerminationDisabled],
+            reason: "Listening for dictation hotkeys"
+        )
 
         checkPermissions()
         Keychain.bootstrapFromEnvironment()
@@ -241,6 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         hotkeys.stop()
         if let monitor = clipboardRestoreMonitor { NSEvent.removeMonitor(monitor) }
+        if let keepAliveActivity { ProcessInfo.processInfo.endActivity(keepAliveActivity) }
     }
 
     /// Only ever nag the user once. After that, permissions are checked

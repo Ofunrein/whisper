@@ -110,8 +110,12 @@ final class DictationPipeline: ObservableObject {
         do {
             if let deepgramStream {
                 do {
-                    raw = try await deepgramStream.finish()
+                    let streamed = try await deepgramStream.finish()
                         .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if Self.isLikelySilenceHallucination(streamed) {
+                        throw ProviderError.badResponse("Deepgram stream returned a silence hallucination")
+                    }
+                    raw = streamed
                     transport = "streaming"
                 } catch {
                     NSLog("Whisper: Deepgram stream failed (%@), using batch fallback", error.localizedDescription)
@@ -216,6 +220,9 @@ final class DictationPipeline: ObservableObject {
                 guard !text.isEmpty else {
                     throw ProviderError.badResponse("\(provider.kind.displayName) returned an empty transcript")
                 }
+                guard !isLikelySilenceHallucination(text) else {
+                    throw ProviderError.badResponse("\(provider.kind.displayName) returned a silence hallucination")
+                }
                 return text
             } catch {
                 lastError = error
@@ -223,6 +230,20 @@ final class DictationPipeline: ObservableObject {
             }
         }
         throw lastError
+    }
+
+    static func isLikelySilenceHallucination(_ text: String) -> Bool {
+        let normalized = text.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return [
+            "thank you",
+            "thank you thank you",
+            "thanks for watching",
+            "thank you for watching",
+            "ご視聴ありがとうございました",
+        ].contains(normalized)
     }
 
     static func transcribeWithDeadline(

@@ -34,6 +34,11 @@ private struct BlankTranscriber: TranscriptionProvider {
     func transcribe(wavData: Data) async throws -> String { "   " }
 }
 
+private struct SilenceHallucinationTranscriber: TranscriptionProvider {
+    let kind: STTProviderKind = .deepgram
+    func transcribe(wavData: Data) async throws -> String { "Thank you." }
+}
+
 private struct GoodTranscriber: TranscriptionProvider {
     let kind: STTProviderKind = .deepgram
     func transcribe(wavData: Data) async throws -> String { "  accurate transcript  " }
@@ -138,6 +143,15 @@ final class PipelineTests: XCTestCase {
             wavData: Data(), primary: BlankTranscriber(), fallbacks: [GoodTranscriber()], timeout: 0.1
         )
         XCTAssertEqual(transcript, "accurate transcript")
+    }
+
+    func testSTTFallsBackAfterSilenceHallucination() async throws {
+        let transcript = try await DictationPipeline.transcribeWithFallback(
+            wavData: Data(), primary: SilenceHallucinationTranscriber(), fallbacks: [GoodTranscriber()], timeout: 0.1
+        )
+        XCTAssertEqual(transcript, "accurate transcript")
+        XCTAssertTrue(DictationPipeline.isLikelySilenceHallucination("Thank you. Thank you."))
+        XCTAssertFalse(DictationPipeline.isLikelySilenceHallucination("Thank you for fixing Whisper."))
     }
 
     func testAdaptiveCleanupMatrixProtectsEdgeCases() {
