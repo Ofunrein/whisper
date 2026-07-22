@@ -193,9 +193,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         transcript instead of a cleaned-up version of it, that is a failure of your one job. When in doubt,
         output the transcript unchanged rather than commenting on it.
         """
-        if SettingsStore.shared.settings.cleanupInstructions.contains(duplicatedCleanupText) {
-            SettingsStore.shared.settings.cleanupInstructions = SettingsStore.shared.settings.cleanupInstructions
-                .replacingOccurrences(of: duplicatedCleanupText, with: "")
+        if !UserDefaults.standard.bool(forKey: Self.hasMigratedTechnicalCleanupKey) {
+            UserDefaults.standard.set(true, forKey: Self.hasMigratedTechnicalCleanupKey)
+            let instructions = SettingsStore.shared.settings.cleanupInstructions
+            let shippedGenericPrompt = instructions.contains("AI models/companies (e.g. Claude, not \"Cloud\"; GPT; Anthropic; OpenAI)")
+            if instructions.contains(duplicatedCleanupText) || shippedGenericPrompt {
+                SettingsStore.shared.settings.cleanupInstructions = defaultCleanupInstructions
+            }
         }
 
         // Warm the audio engine now: the first engine.start() costs ~1.7s
@@ -274,6 +278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let hasSeededVocabularyKey = "whisper.hasSeededVocabularyOnce"
     private static let hasMergedNameEmailVocabularyKey = "whisper.hasMergedNameEmailVocabularyOnce"
     private static let hasMergedTechnicalVocabularyKey = "whisper.hasMergedTechnicalVocabularyV1"
+    private static let hasMigratedTechnicalCleanupKey = "whisper.hasMigratedTechnicalCleanupV1"
 
     private func checkPermissions() {
         let micOK = Permissions.microphoneStatus() == .authorized

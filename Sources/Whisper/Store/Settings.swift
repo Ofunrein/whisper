@@ -505,8 +505,12 @@ final class SettingsStore: ObservableObject {
                 || decoded.rightClickHoldThresholdMs == 600 {
                 decoded.rightClickHoldThresholdMs = 100
             }
-            if decoded.groqCleanupModel == "openai/gpt-oss-20b" {
-                decoded.groqCleanupModel = AppSettings.defaultGroqCleanupModel
+            let cleanupModelMigrationKey = "whisper.hasMigratedGroqCleanup120bV1"
+            if !UserDefaults.standard.bool(forKey: cleanupModelMigrationKey) {
+                if decoded.groqCleanupModel == "openai/gpt-oss-20b" {
+                    decoded.groqCleanupModel = AppSettings.defaultGroqCleanupModel
+                }
+                UserDefaults.standard.set(true, forKey: cleanupModelMigrationKey)
             }
             settings = decoded
             // Property observers do not run during initialization, so persist
