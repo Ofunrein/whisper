@@ -66,6 +66,48 @@ final class PipelineTests: XCTestCase {
         )
     }
 
+    func testDeepgramKeytermsReachBatchAndStreamingURLs() {
+        let vocabulary = [
+            VocabularyEntry(from: "Claude Code"),
+            VocabularyEntry(from: "clot code", to: "Claude Code"),
+            VocabularyEntry(from: "dot EMV", to: ".env"),
+        ]
+        let keyterms = VocabularyEngine.deepgramKeyterms(for: vocabulary)
+        XCTAssertEqual(keyterms, ["Claude Code", ".env"])
+
+        for url in [
+            DeepgramTranscriber.url(keyterms: keyterms),
+            DeepgramStreamingSession.url(keyterms: keyterms),
+        ] {
+            let values = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+                .filter { $0.name == "keyterm" }.compactMap(\.value)
+            XCTAssertEqual(values, keyterms)
+        }
+    }
+
+    func testDefaultVocabularySuppliesOneHundredPrioritizedDeepgramKeyterms() {
+        let keyterms = VocabularyEngine.deepgramKeyterms(for: defaultVocabulary)
+        XCTAssertEqual(keyterms.count, 100)
+        for expected in ["Claude Code", "Codex", ".gitignore", "software engineering", "symlink", "AGENTS.md", ".env"] {
+            XCTAssertTrue(keyterms.contains(expected), "Missing prioritized keyterm: \(expected)")
+        }
+    }
+
+    func testObservedTechnicalMishearReplacements() {
+        let cases = [
+            ("Anthropic clot code", "Anthropic Claude Code"),
+            ("the other codec session", "the other Codex session"),
+            ("the other code accession", "the other Codex session"),
+            ("inside cloudam deep dish", "inside CLAUDE.md push"),
+            ("add it to dot EMV", "add it to .env"),
+            ("Git ignore should include build", ".gitignore should include build"),
+            ("this file is Git ignored", "this file is gitignored"),
+        ]
+        for (raw, expected) in cases {
+            XCTAssertEqual(VocabularyEngine.applyReplacements(raw, vocabulary: defaultVocabulary), expected)
+        }
+    }
+
     func testLiveDeepgramStreamingWhenEnabled() async throws {
         guard ProcessInfo.processInfo.environment["WHISPER_LIVE_STREAM_TEST"] == "1",
               let path = ProcessInfo.processInfo.environment["WHISPER_LIVE_STREAM_WAV"] else {
@@ -237,5 +279,8 @@ final class PipelineTests: XCTestCase {
     func testDefaultCleanupInstructionsVerbatim() {
         XCTAssertTrue(defaultCleanupInstructions.hasPrefix("You clean up raw speech-to-text transcripts"))
         XCTAssertTrue(defaultCleanupInstructions.contains("If something is ambiguous or clearly misheard, leave it as-is rather than guessing."))
+        XCTAssertTrue(defaultCleanupInstructions.contains("Claude Code, Codex"))
+        XCTAssertTrue(defaultCleanupInstructions.contains("codec\" near an agent"))
+        XCTAssertFalse(defaultCleanupInstructions.contains("transcript instead of a cleaned-up version"))
     }
 }

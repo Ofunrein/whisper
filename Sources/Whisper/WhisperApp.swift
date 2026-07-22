@@ -170,6 +170,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Add the expanded software-engineering vocabulary to existing installs.
+        if !UserDefaults.standard.bool(forKey: Self.hasMergedTechnicalVocabularyKey) {
+            UserDefaults.standard.set(true, forKey: Self.hasMergedTechnicalVocabularyKey)
+            let existing = Set(SettingsStore.shared.settings.vocabulary.map { $0.from.lowercased() })
+            let missing = defaultVocabulary.filter { !existing.contains($0.from.lowercased()) }
+            if !missing.isEmpty {
+                SettingsStore.shared.settings.vocabulary.append(contentsOf: missing)
+            }
+        }
+
         // Migration: settings saved before the anti-refusal cleanup prompt
         // was added still hold an old instructions string verbatim (a saved
         // value always wins over a changed code default). Upgrade it forward
@@ -178,6 +188,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let legacyCleanupInstructions = [legacyCleanupInstructionsV1, legacyCleanupInstructionsV2]
         if legacyCleanupInstructions.contains(SettingsStore.shared.settings.cleanupInstructions) {
             SettingsStore.shared.settings.cleanupInstructions = defaultCleanupInstructions
+        }
+        let duplicatedCleanupText = """
+        transcript instead of a cleaned-up version of it, that is a failure of your one job. When in doubt,
+        output the transcript unchanged rather than commenting on it.
+        """
+        if SettingsStore.shared.settings.cleanupInstructions.contains(duplicatedCleanupText) {
+            SettingsStore.shared.settings.cleanupInstructions = SettingsStore.shared.settings.cleanupInstructions
+                .replacingOccurrences(of: duplicatedCleanupText, with: "")
         }
 
         // Warm the audio engine now: the first engine.start() costs ~1.7s
@@ -255,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let hasPromptedKey = "whisper.hasPromptedForPermissionsOnce"
     private static let hasSeededVocabularyKey = "whisper.hasSeededVocabularyOnce"
     private static let hasMergedNameEmailVocabularyKey = "whisper.hasMergedNameEmailVocabularyOnce"
+    private static let hasMergedTechnicalVocabularyKey = "whisper.hasMergedTechnicalVocabularyV1"
 
     private func checkPermissions() {
         let micOK = Permissions.microphoneStatus() == .authorized

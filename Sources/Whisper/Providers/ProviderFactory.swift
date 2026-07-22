@@ -8,7 +8,7 @@ enum ProviderFactory {
         case .elevenLabs:
             return ElevenLabsTranscriber()
         case .deepgram:
-            return DeepgramTranscriber()
+            return DeepgramTranscriber(keyterms: VocabularyEngine.deepgramKeyterms(for: settings.vocabulary))
         case .openAI:
             return OpenAITranscriber()
         case .localWhisper:

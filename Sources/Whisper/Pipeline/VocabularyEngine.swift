@@ -6,6 +6,17 @@ import Foundation
 /// runs regardless of whether cleanup is enabled (it fixes STT mishears the
 /// cleanup model may not catch, e.g. a misheard name).
 enum VocabularyEngine {
+    /// Nova-3 accepts at most 100 repeated `keyterm` query parameters. Replacement
+    /// targets are useful prompts; their phonetic source variants are not.
+    static func deepgramKeyterms(for vocabulary: [VocabularyEntry]) -> [String] {
+        var seen = Set<String>()
+        return vocabulary.compactMap { entry in
+            let term = (entry.to ?? entry.from).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !term.isEmpty, seen.insert(term.lowercased()).inserted else { return nil }
+            return term
+        }.prefix(100).map { $0 }
+    }
+
     /// Appended to the cleanup system instruction so the model spells these
     /// terms correctly instead of guessing from the phonetic transcript.
     /// Covers both plain vocabulary (spell-as-given) and replacement pairs

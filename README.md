@@ -58,6 +58,8 @@ Cleanup is optional. If cleanup fails, times out, or has no key, Whisper pastes 
 
 Local mode: install `whisper-cpp`, put any ggml model in `~/Library/Application Support/Whisper/models/`, then pick local whisper.cpp in Settings. The app can browse, remember, and switch local model paths. Pick Ollama separately for local cleanup.
 
+Deepgram Nova-3 uses the Vocabulary list as live keyterm prompting. Default vocabulary includes 100 prioritized software-engineering terms; custom terms feed both streaming and batch transcription plus cleanup.
+
 ## Features
 
 - Hold-to-record hotkeys for keyboard and mouse buttons.

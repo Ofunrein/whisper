@@ -38,7 +38,9 @@ final class DictationPipeline: ObservableObject {
         deepgramStream = nil
         recorder.setPCMChunkHandler(nil)
         if settings.sttProvider == .deepgram, settings.recordSystemAudio != true {
-            let stream = DeepgramStreamingSession()
+            let stream = DeepgramStreamingSession(
+                keyterms: VocabularyEngine.deepgramKeyterms(for: settings.vocabulary)
+            )
             deepgramStream = stream
             recorder.setPCMChunkHandler { [weak stream] chunk in stream?.push(chunk) }
             stream.start()

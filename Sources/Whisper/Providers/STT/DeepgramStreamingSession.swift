@@ -48,8 +48,10 @@ final class DeepgramStreamingSession: @unchecked Sendable {
     private var latestInterim = ""
     private var speechFinal = false
     private var failure: Error?
+    private let keyterms: [String]
 
-    init() {
+    init(keyterms: [String] = []) {
+        self.keyterms = keyterms
         var continuation: AsyncStream<Data>.Continuation!
         audioStream = AsyncStream<Data> { continuation = $0 }
         audioContinuation = continuation
@@ -91,22 +93,12 @@ final class DeepgramStreamingSession: @unchecked Sendable {
             return
         }
 
-        var components = URLComponents(string: "wss://api.deepgram.com/v1/listen")!
-        components.queryItems = [
-            URLQueryItem(name: "model", value: "nova-3"),
-            URLQueryItem(name: "encoding", value: "linear16"),
-            URLQueryItem(name: "sample_rate", value: "16000"),
-            URLQueryItem(name: "channels", value: "1"),
-            URLQueryItem(name: "smart_format", value: "true"),
-            URLQueryItem(name: "punctuate", value: "true"),
-            URLQueryItem(name: "interim_results", value: "true"),
-            URLQueryItem(name: "endpointing", value: "250"),
-        ]
+        let url = Self.url(keyterms: keyterms)
         let delegate = StreamingWebSocketDelegate()
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 5
         let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
-        let webSocket = session.webSocketTask(with: components.url!, protocols: ["token", key])
+        let webSocket = session.webSocketTask(with: url, protocols: ["token", key])
         setSocket(webSocket, session: session)
         webSocket.resume()
 
@@ -147,6 +139,21 @@ final class DeepgramStreamingSession: @unchecked Sendable {
         webSocket.cancel(with: .normalClosure, reason: nil)
         session.finishTasksAndInvalidate()
         setSocket(nil, session: nil)
+    }
+
+    static func url(keyterms: [String]) -> URL {
+        var components = URLComponents(string: "wss://api.deepgram.com/v1/listen")!
+        components.queryItems = [
+            URLQueryItem(name: "model", value: "nova-3"),
+            URLQueryItem(name: "encoding", value: "linear16"),
+            URLQueryItem(name: "sample_rate", value: "16000"),
+            URLQueryItem(name: "channels", value: "1"),
+            URLQueryItem(name: "smart_format", value: "true"),
+            URLQueryItem(name: "punctuate", value: "true"),
+            URLQueryItem(name: "interim_results", value: "true"),
+            URLQueryItem(name: "endpointing", value: "250"),
+        ] + keyterms.prefix(100).map { URLQueryItem(name: "keyterm", value: $0) }
+        return components.url!
     }
 
     private func receiveLoop(_ webSocket: URLSessionWebSocketTask) async {

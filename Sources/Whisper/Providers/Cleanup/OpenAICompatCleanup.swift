@@ -13,7 +13,7 @@ struct OpenAICompatCleanup: CleanupProvider {
             throw ProviderError.missingKey(providerLabel)
         }
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": systemInstruction],
@@ -22,6 +22,10 @@ struct OpenAICompatCleanup: CleanupProvider {
             "temperature": 0.2,
             "stream": false,
         ]
+        if model.contains("gpt-oss") {
+            payload["reasoning_effort"] = "low"
+            payload["max_completion_tokens"] = 2_048
+        }
         let body = try JSONSerialization.data(withJSONObject: payload)
 
         var request = URLRequest(url: URL(string: baseURL)!)

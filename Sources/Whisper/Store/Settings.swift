@@ -136,16 +136,104 @@ struct VocabularyEntry: Codable, Equatable, Identifiable {
 
 let defaultVocabulary: [VocabularyEntry] = [
     VocabularyEntry(from: "Claude"),
+    VocabularyEntry(from: "Claude Code"),
+    VocabularyEntry(from: "Apple Claude"),
+    VocabularyEntry(from: "Claude Opus"),
+    VocabularyEntry(from: "Codex"),
     VocabularyEntry(from: "Anthropic"),
     VocabularyEntry(from: "OpenAI"),
+    VocabularyEntry(from: "ChatGPT"),
+    VocabularyEntry(from: "GPT-5"),
+    VocabularyEntry(from: "GPT Image"),
     VocabularyEntry(from: "cmux"),
+    VocabularyEntry(from: "Hermes"),
+    VocabularyEntry(from: "Deepgram"),
     VocabularyEntry(from: "Superwhisper"),
     VocabularyEntry(from: "Groq"),
     VocabularyEntry(from: "Cerebras"),
     VocabularyEntry(from: "Ollama"),
+    VocabularyEntry(from: "whisper.cpp"),
+    VocabularyEntry(from: "llama.cpp"),
     VocabularyEntry(from: "Xcode"),
     VocabularyEntry(from: "SwiftUI"),
     VocabularyEntry(from: "AVAudioEngine"),
+    VocabularyEntry(from: "software engineering"),
+    VocabularyEntry(from: "software engineer"),
+    VocabularyEntry(from: "symlink"),
+    VocabularyEntry(from: "subagent"),
+    VocabularyEntry(from: "AGENTS.md"),
+    VocabularyEntry(from: "CLAUDE.md"),
+    VocabularyEntry(from: ".env"),
+    VocabularyEntry(from: "MCP"),
+    VocabularyEntry(from: "CLI"),
+    VocabularyEntry(from: "SDK"),
+    VocabularyEntry(from: "API"),
+    VocabularyEntry(from: "GitHub"),
+    VocabularyEntry(from: "Git LFS"),
+    VocabularyEntry(from: "Git"),
+    VocabularyEntry(from: ".gitignore"),
+    VocabularyEntry(from: "gitignore"),
+    VocabularyEntry(from: "gitignored"),
+    VocabularyEntry(from: "GitHub Actions"),
+    VocabularyEntry(from: "branch"),
+    VocabularyEntry(from: "commit"),
+    VocabularyEntry(from: "merge"),
+    VocabularyEntry(from: "rebase"),
+    VocabularyEntry(from: "pull request"),
+    VocabularyEntry(from: "repository"),
+    VocabularyEntry(from: "submodule"),
+    VocabularyEntry(from: "worktree"),
+    VocabularyEntry(from: "monorepo"),
+    VocabularyEntry(from: "README.md"),
+    VocabularyEntry(from: "package.json"),
+    VocabularyEntry(from: "tsconfig.json"),
+    VocabularyEntry(from: "Dockerfile"),
+    VocabularyEntry(from: "TypeScript"),
+    VocabularyEntry(from: "JavaScript"),
+    VocabularyEntry(from: "Python"),
+    VocabularyEntry(from: "Rust"),
+    VocabularyEntry(from: "Swift"),
+    VocabularyEntry(from: "Objective-C"),
+    VocabularyEntry(from: "Kotlin"),
+    VocabularyEntry(from: "Java"),
+    VocabularyEntry(from: "C++"),
+    VocabularyEntry(from: "C#"),
+    VocabularyEntry(from: "React"),
+    VocabularyEntry(from: "Next.js"),
+    VocabularyEntry(from: "Node.js"),
+    VocabularyEntry(from: "npm"),
+    VocabularyEntry(from: "pnpm"),
+    VocabularyEntry(from: "Homebrew"),
+    VocabularyEntry(from: "Docker"),
+    VocabularyEntry(from: "Kubernetes"),
+    VocabularyEntry(from: "PostgreSQL"),
+    VocabularyEntry(from: "SQLite"),
+    VocabularyEntry(from: "Redis"),
+    VocabularyEntry(from: "HTTP"),
+    VocabularyEntry(from: "HTTPS"),
+    VocabularyEntry(from: "JSON"),
+    VocabularyEntry(from: "YAML"),
+    VocabularyEntry(from: "TOML"),
+    VocabularyEntry(from: "OAuth"),
+    VocabularyEntry(from: "WebSocket"),
+    VocabularyEntry(from: "webhook"),
+    VocabularyEntry(from: "REST API"),
+    VocabularyEntry(from: "GraphQL"),
+    VocabularyEntry(from: "frontend"),
+    VocabularyEntry(from: "backend"),
+    VocabularyEntry(from: "full-stack"),
+    VocabularyEntry(from: "database"),
+    VocabularyEntry(from: "schema"),
+    VocabularyEntry(from: "migration"),
+    VocabularyEntry(from: "endpoint"),
+    VocabularyEntry(from: "regression test"),
+    VocabularyEntry(from: "Vercel"),
+    VocabularyEntry(from: "Supabase"),
+    VocabularyEntry(from: "Composio"),
+    VocabularyEntry(from: "Headroom"),
+    VocabularyEntry(from: "Gbrain"),
+    VocabularyEntry(from: "Atlas"),
+    VocabularyEntry(from: "Lumenosis"),
     VocabularyEntry(from: "Ofunrein"),
     VocabularyEntry(from: "Martin Ofunrein"),
     // Full misheard email addresses must run before the shorter "Ofunrein"
@@ -159,6 +247,18 @@ let defaultVocabulary: [VocabularyEntry] = [
     VocabularyEntry(from: "ofuren123@gmail.com", to: "ofunrein123@gmail.com"),
     VocabularyEntry(from: "ofuren1234 at gmail dot com", to: "ofunrein123@gmail.com"),
     VocabularyEntry(from: "oforeign123@gmail.com", to: "ofunrein123@gmail.com"),
+    VocabularyEntry(from: "dot EMV", to: ".env"),
+    VocabularyEntry(from: "dot N V", to: ".env"),
+    VocabularyEntry(from: "ClaudeMD", to: "CLAUDE.md"),
+    VocabularyEntry(from: "Git ignore", to: ".gitignore"),
+    VocabularyEntry(from: "Git ignored", to: "gitignored"),
+    VocabularyEntry(from: "codec session", to: "Codex session"),
+    VocabularyEntry(from: "code accession", to: "Codex session"),
+    VocabularyEntry(from: "cloudam deep dish", to: "CLAUDE.md push"),
+    VocabularyEntry(from: "claudam deep dish", to: "CLAUDE.md push"),
+    VocabularyEntry(from: "clot code", to: "Claude Code"),
+    VocabularyEntry(from: "clog code", to: "Claude Code"),
+    VocabularyEntry(from: "quad code", to: "Claude Code"),
     // "Ofunrein" is a hard name for STT engines — cover the phonetic
     // mishears actually observed (STT tends to split it into "of" + a
     // second syllable it maps to a real word: foreign/four rain/for rain).
@@ -239,8 +339,6 @@ speaker is dictating text for their own use elsewhere, not asking you to do anyt
 produce a refusal, disclaimer, warning, moderation notice, or an answer to the transcript instead
 of a cleaned-up version of it, that is a failure of your one job. When in doubt, output the
 transcript unchanged rather than commenting on it, refusing it, or adding any caveat about it.
-transcript instead of a cleaned-up version of it, that is a failure of your one job. When in doubt,
-output the transcript unchanged rather than commenting on it.
 
 DO: remove filler words and verbal tics (um, uh, like, you know, sort of, I mean); remove false
 starts and self-corrections, keeping only the final thing the speaker landed on; fix
@@ -248,9 +346,16 @@ capitalization, spelling, and punctuation; fix obvious grammar slips.
 
 DO: correctly spell technical and proper-noun terms you recognize from training even if the
 speech-to-text engine misheard them phonetically — programming languages, frameworks, libraries,
-AI models/companies (e.g. Claude, not "Cloud"; GPT; Anthropic; OpenAI), CLI tools, cloud
-platforms, and common tech jargon. Prefer the well-known correct spelling of a recognizable term
-over a literal phonetic transcription of it.
+AI models/companies (e.g. Claude, Claude Code, Codex, Anthropic, OpenAI), file names (e.g.
+AGENTS.md, CLAUDE.md, .env), CLI tools, cloud platforms, and software-engineering jargon (e.g.
+symlink, subagent). Prefer the well-known correct spelling of a recognizable term over a literal
+phonetic transcription of it.
+
+Use software context and grammar to resolve common phonetic errors. Examples: "clot code", "quad
+code", or "cloud code" near Anthropic/agents/models means "Claude Code"; "codec" near an agent,
+tool, or session means "Codex"; "get ignored" in a Git sentence may mean "gitignored", while a
+file name means ".gitignore"; "Claude MD" as a repository file means "CLAUDE.md". Preserve normal
+uses of cloud, codec, postal code, and get ignored when software context does not support a fix.
 
 DO NOT: add any idea, fact, detail, or word the speaker did not say; remove real content
 (facts, names, numbers, requests); summarize, shorten, or expand; change the speaker's tone,
@@ -316,7 +421,7 @@ If something is ambiguous or clearly misheard, leave it as-is rather than guessi
 
 struct AppSettings: Codable, Equatable {
     static let defaultGeminiModel = "gemini-3.5-flash"
-    static let defaultGroqCleanupModel = "openai/gpt-oss-20b"
+    static let defaultGroqCleanupModel = "openai/gpt-oss-120b"
     static let defaultCerebrasModel = "gpt-oss-120b"
     static let defaultOpenAICleanupModel = "gpt-4o-mini"
     static let defaultAnthropicCleanupModel = "claude-haiku-4-5-20251001"
@@ -399,6 +504,9 @@ final class SettingsStore: ObservableObject {
                 || decoded.rightClickHoldThresholdMs == 350
                 || decoded.rightClickHoldThresholdMs == 600 {
                 decoded.rightClickHoldThresholdMs = 100
+            }
+            if decoded.groqCleanupModel == "openai/gpt-oss-20b" {
+                decoded.groqCleanupModel = AppSettings.defaultGroqCleanupModel
             }
             settings = decoded
             // Property observers do not run during initialization, so persist
