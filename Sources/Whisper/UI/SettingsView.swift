@@ -494,11 +494,15 @@ private struct VocabularyTab: View {
                             LazyVStack(spacing: 6) {
                                 ForEach(Array(store.settings.vocabulary.enumerated()), id: \.element.id) { index, entry in
                                     HStack(spacing: 6) {
-                                        TextField("Word or phrase", text: fromBinding(index))
+                                        TextField("Word or phrase", text: fromBinding(index), axis: .vertical)
                                             .textFieldStyle(.roundedBorder)
+                                            .lineLimit(1...4)
+                                            .frame(minWidth: 200)
                                         Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                                        TextField("(known term)", text: toBinding(index))
+                                        TextField("(known term)", text: toBinding(index), axis: .vertical)
                                             .textFieldStyle(.roundedBorder)
+                                            .lineLimit(1...4)
+                                            .frame(minWidth: 200)
                                         Button(role: .destructive) {
                                             store.settings.vocabulary.remove(at: index)
                                         } label: {
@@ -515,11 +519,15 @@ private struct VocabularyTab: View {
                     Divider()
 
                     HStack {
-                        TextField("Word or misheard phrase", text: $newFrom)
+                        TextField("Word or misheard phrase", text: $newFrom, axis: .vertical)
                             .textFieldStyle(.roundedBorder)
+                            .lineLimit(1...4)
+                            .frame(minWidth: 200)
                         Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                        TextField("Correct spelling (optional)", text: $newTo)
+                        TextField("Correct spelling (optional)", text: $newTo, axis: .vertical)
                             .textFieldStyle(.roundedBorder)
+                            .lineLimit(1...4)
+                            .frame(minWidth: 200)
                         Button("Add") {
                             guard !newFrom.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                             let to = newTo.trimmingCharacters(in: .whitespaces)

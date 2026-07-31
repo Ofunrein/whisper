@@ -180,6 +180,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Merge later-added default entries (e.g. new email mishears) into
+        // installs that already ran every earlier one-shot merge.
+        if !UserDefaults.standard.bool(forKey: Self.hasMergedEmailVocabularyV2Key) {
+            UserDefaults.standard.set(true, forKey: Self.hasMergedEmailVocabularyV2Key)
+            let existing = Set(SettingsStore.shared.settings.vocabulary.map { $0.from.lowercased() })
+            let missing = defaultVocabulary.filter { !existing.contains($0.from.lowercased()) }
+            if !missing.isEmpty {
+                SettingsStore.shared.settings.vocabulary.append(contentsOf: missing)
+            }
+        }
+
         // Migration: settings saved before the anti-refusal cleanup prompt
         // was added still hold an old instructions string verbatim (a saved
         // value always wins over a changed code default). Upgrade it forward
@@ -278,6 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let hasSeededVocabularyKey = "whisper.hasSeededVocabularyOnce"
     private static let hasMergedNameEmailVocabularyKey = "whisper.hasMergedNameEmailVocabularyOnce"
     private static let hasMergedTechnicalVocabularyKey = "whisper.hasMergedTechnicalVocabularyV1"
+    private static let hasMergedEmailVocabularyV2Key = "whisper.hasMergedEmailVocabularyV2"
     private static let hasMigratedTechnicalCleanupKey = "whisper.hasMigratedTechnicalCleanupV1"
 
     private func checkPermissions() {
