@@ -46,6 +46,19 @@ final class AudioRecorder: ObservableObject {
     private var rebuildWorkItem: DispatchWorkItem?
     private var repinWorkItem: DispatchWorkItem?
     private var defaultInputListener: AudioObjectPropertyListenerBlock?
+    /// Engines replaced by `reconfigure()`, held past any in-flight AVFAudio
+    /// callback. See the comment in `reconfigure()`.
+    private var retiredEngines: [AVAudioEngine] = []
+
+    /// Mic-pin circuit breaker state. See `applyPreferredDevice`.
+    private var pinTarget: String?
+    private var pinFailures = 0
+    private var pinSuspended = false
+    private static let maxPinFailures = 3
+
+    /// Rebuild rate floor. See `observeEngine`.
+    private var lastRebuild = Date.distantPast
+    private static let minRebuildInterval: TimeInterval = 2
 
     init() {
         observeEngine()
@@ -56,6 +69,7 @@ final class AudioRecorder: ObservableObject {
         if let listener = defaultInputListener {
             AudioDevices.removeDefaultInputDeviceListener(listener)
         }
+        if let o = configObserver { NotificationCenter.default.removeObserver(o) }
     }
 
     /// Input device changes (AirPods connect, USB mic unplug) stop the
@@ -73,7 +87,13 @@ final class AudioRecorder: ObservableObject {
             self.rebuildWorkItem?.cancel()
             let work = DispatchWorkItem { [weak self] in self?.reconfigure() }
             self.rebuildWorkItem = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+            // Rate floor on top of the debounce: a device that flaps
+            // continuously (two apps fighting over the default input) would
+            // otherwise have us tearing the engine down every ~2s forever.
+            // Coalesce into one rebuild per `minRebuildInterval`.
+            let earliest = self.lastRebuild.addingTimeInterval(Self.minRebuildInterval)
+            let delay = max(0.4, earliest.timeIntervalSinceNow)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
         }
     }
 
@@ -238,7 +258,17 @@ final class AudioRecorder: ObservableObject {
     // MARK: - Engine
 
     private func ensureEngineRunning() -> Bool {
-        if engineRunning { return true }
+        if engineRunning {
+            if engine.isRunning { return true }
+            // The engine died without an AVAudioEngineConfigurationChange —
+            // sleep/wake, a HAL error, or a device yanked mid-session all do
+            // this. Trusting the flag alone left the app permanently deaf:
+            // start() reported success, the tap never fired, and every take
+            // came back nil ("Whisper stopped responding after a while").
+            NSLog("AudioRecorder: engine stopped underneath us, rebuilding")
+            reconfigure()
+            return engineRunning
+        }
         let input = engine.inputNode
         applyPreferredDevice()
         let hwFormat = input.outputFormat(forBus: 0)
@@ -283,9 +313,27 @@ final class AudioRecorder: ObservableObject {
     /// silently overwritten a beat later by CoreAudio settling the new
     /// device. Verify the pin actually stuck and retry once after a short
     /// delay if it didn't, instead of firing-and-forgetting the call.
+    ///
+    /// Bounded by a circuit breaker. Another app can *hold* the default input
+    /// device (FineTune's "lock input device", Hammerspoon mic locks, meeting
+    /// clients) and slam it back within ~80ms, forever. Retrying into that
+    /// produced a self-sustaining fight: pin → their revert → our
+    /// default-device listener → repin → AVAudioEngineConfigurationChange →
+    /// engine rebuild → repin. The engine was torn down every ~2s, so no
+    /// hotkey press ever captured audio (the "Whisper stops responding after a
+    /// while" report) and the churn eventually segfaulted AVFAudio. After
+    /// `maxPinFailures` consecutive misses we stop writing and follow the
+    /// system default instead — degraded mic beats deaf app.
     private func applyPreferredDevice(retriesRemaining: Int = 1) {
         guard let wanted = SettingsStore.shared.settings.preferredInputDevice,
               let deviceID = AudioDevices.deviceID(named: wanted) else { return }
+        // A different target means a fresh fight worth having.
+        if wanted != pinTarget {
+            pinTarget = wanted
+            pinFailures = 0
+            pinSuspended = false
+        }
+        guard !pinSuspended else { return }
         // Skip when already the default: setting it unconditionally fires
         // AVAudioEngineConfigurationChange, which triggers a rebuild, which
         // re-pins... an endless restart loop that captures nothing.
@@ -299,7 +347,17 @@ final class AudioRecorder: ObservableObject {
         // clobbered by the system re-asserting the newly connected device.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self else { return }
-            guard AudioDevices.defaultInputDeviceID() != deviceID else { return }
+            if AudioDevices.defaultInputDeviceID() == deviceID {
+                self.pinFailures = 0
+                return
+            }
+            self.pinFailures += 1
+            guard self.pinFailures < Self.maxPinFailures else {
+                self.pinSuspended = true
+                NSLog("AudioRecorder: '%@' will not hold as the default input after %d attempts — something else is locking it. Following the system default instead.",
+                      wanted, self.pinFailures)
+                return
+            }
             NSLog("AudioRecorder: pin to '%@' did not stick, retrying", wanted)
             self.applyPreferredDevice(retriesRemaining: retriesRemaining - 1)
         }
@@ -313,9 +371,27 @@ final class AudioRecorder: ObservableObject {
         // superseded by the fresh pin ensureEngineRunning() below performs
         // against the new engine; drop it so it doesn't fire redundantly.
         repinWorkItem?.cancel()
-        engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
+        lastRebuild = Date()
+        let old = engine
+        old.stop()
+        old.inputNode.removeTap(onBus: 0)
         engine = AVAudioEngine()
+        // Hold `old` past this turn of the run loop rather than letting it
+        // deallocate inline. AVFAudio installs an IO-unit property listener
+        // whose callback is dispatched onto its own AVAudioIOUnit queue and
+        // dereferences the engine's internal IO unit without retaining it; a
+        // queued callback landing after teardown segfaults in
+        // AVAudioIOUnit::IOUnitPropertyListener (EXC_BAD_ACCESS in
+        // objc_msgSend). This retain only narrows the dealloc-time window — it
+        // does NOT close it, and on its own it did not stop the crash. What
+        // actually stopped it was removing the rebuild storm that made the race
+        // near-certain: see the circuit breaker in `applyPreferredDevice` and
+        // the rate floor in `observeEngine`. Every observed crash happened
+        // while the engine was being torn down several times a second.
+        retiredEngines.append(old)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.retiredEngines.removeAll { $0 === old }
+        }
         observeEngine()
         converter = nil
         converterInputFormat = nil
