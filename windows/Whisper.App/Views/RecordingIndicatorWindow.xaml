@@ -6,8 +6,8 @@
     <!--
         Minimal Windows counterpart to the mac app's floating pill
         (Sources/Whisper/UI/PillIndicator.swift). That's a full borderless
-        NSPanel with a live waveform, drag-to-reposition, and a snap grid --
-        porting all of that is a separate, much bigger visual-parity pass.
+        NSPanel with a live waveform, drag-to-reposition, and a snap grid.
+        Porting all of that is a separate, much bigger visual-parity pass.
         This is the functional subset needed for task #4: an always-on-top,
         borderless "recording, click to stop" affordance wired to the same
         stop path the hold-hotkey uses, so users aren't required to hold a
@@ -23,7 +23,7 @@
         PointerPressed="OnPointerPressed">
         <StackPanel Orientation="Horizontal" Spacing="8" Padding="14,8" VerticalAlignment="Center">
             <Ellipse x:Name="RecDot" Width="9" Height="9" Fill="#FF4D4D" />
-            <TextBlock x:Name="StatusText" Text="Recording -- click to stop" Foreground="White" FontSize="13" VerticalAlignment="Center" />
+            <TextBlock x:Name="StatusText" Text="Recording. Click to stop" Foreground="White" FontSize="13" VerticalAlignment="Center" />
         </StackPanel>
     </Border>
 </Window>

@@ -15,7 +15,7 @@
                         so no hand-rolled icon/state is needed here. Same idea as
                         the mac app's SecureField + eye button, just the platform-
                         native version of it. One PasswordBox per provider that
-                        needs a key -- Groq/OpenAI double as both an STT and a
+                        needs a key. Groq/OpenAI double as both an STT and a
                         cleanup key (same account, same provider), matching the
                         mac app's single Keychain entry per provider.
                     -->
@@ -39,7 +39,7 @@
                     <TextBlock Text="Anthropic (Claude) API Key" FontWeight="SemiBold" Margin="0,8,0,0" />
                     <PasswordBox x:Name="AnthropicKeyBox" PasswordRevealMode="Peek" PlaceholderText="sk-ant-..." PasswordChanged="OnAnthropicKeyChanged" />
 
-                    <TextBlock Text="Ollama runs locally and needs no API key -- see the Cleanup Provider section on the Output tab for its base URL/model fields."
+                    <TextBlock Text="Ollama runs locally and needs no API key. See the Cleanup Provider section on the Output tab for its base URL/model fields."
                                Opacity="0.6" TextWrapping="Wrap" Margin="0,12,0,0" />
                 </StackPanel>
             </ScrollViewer>
@@ -55,7 +55,7 @@
                         <ComboBoxItem Content="Deepgram (Nova-3)" Tag="Deepgram" />
                         <ComboBoxItem Content="ElevenLabs (Scribe v2)" Tag="ElevenLabs" />
                     </ComboBox>
-                    <TextBlock Text="Local on-device transcription (whisper.cpp, matching the mac app's Local Whisper option) is not available on Windows yet -- all providers above are cloud APIs and need the matching key on the API Keys tab."
+                    <TextBlock Text="Local on-device transcription (whisper.cpp, matching the mac app's Local Whisper option) is not available on Windows yet. All providers above are cloud APIs and need the matching key on the API Keys tab."
                                Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
 
                     <ToggleSwitch x:Name="CleanupToggle" Header="Clean up transcript" Toggled="OnCleanupToggled" Margin="0,12,0,0" />
@@ -102,7 +102,7 @@
                     <ComboBoxItem Content="Mouse Button 4 (Back / XButton1)" Tag="XButton1" />
                     <ComboBoxItem Content="Mouse Button 5 (Forward / XButton2)" Tag="XButton2" />
                 </ComboBox>
-                <TextBlock Text="Full glyph-based hotkey recorder (matching the mac app's visual picker) is a follow-up -- this is a fixed preset list for now. Mouse buttons 4/5 are reported reliably by Windows' raw input for standard mice, but some gaming-mouse vendor drivers remap them to macros before they reach this hook -- see windows/README.md."
+                <TextBlock Text="Full glyph-based hotkey recorder (matching the mac app's visual picker) is a follow-up. This is a fixed preset list for now. Mouse buttons 4/5 are reported reliably by Windows' raw input for standard mice, but some gaming-mouse vendor drivers remap them to macros before they reach this hook. See windows/README.md."
                            Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
 
                 <TextBlock Text="Trigger Style" FontWeight="SemiBold" Margin="0,12,0,0" />
