@@ -38,7 +38,7 @@ public sealed partial class RecordingIndicatorWindow : Window
         InitializeComponent();
 
         var hwnd = WindowNative.GetWindowHandle(this);
-        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
 
         // Tool window + no-activate: no taskbar entry, and clicking it
