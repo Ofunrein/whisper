@@ -2,15 +2,55 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
-  workflow_dispatch: {}
+    paths:
+      - "VERSION"
 
 permissions:
   contents: write
 
 jobs:
+  release-meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches VERSION
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: test "$GITHUB_REF_NAME" = "v$(tr -d '[:space:]' < VERSION)"
+
+      - name: Create release tag from main
+        if: github.ref == 'refs/heads/main'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists; VERSION must be bumped for a new release." >&2
+            exit 1
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
+
   build-mac:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: release-meta
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -29,23 +69,9 @@ jobs:
             build/Whisper-*.dmg
             build/Whisper-*.pkg
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            build/Whisper-*.dmg
-            build/Whisper-*.pkg
-          generate_release_notes: true
-          body: |
-            Unsigned by an Apple Developer ID (no notarization). On first
-            launch, right-click Whisper.app (or the installed app from the
-            pkg) and choose Open to bypass Gatekeeper's unidentified
-            developer warning.
-
   build-windows:
     runs-on: windows-latest
-    needs: build-mac
+    needs: [release-meta, build-mac]
     steps:
       - uses: actions/checkout@v4
 
@@ -90,8 +116,8 @@ jobs:
         run: >
           wix build windows/Whisper.App/Installer/Package.wxs
           -arch x64
-          -d PublishDir=windows/publish/win-x64
-          -d Version=${{ steps.version.outputs.version }}
+          -d PublishDir="${{ github.workspace }}\windows\publish\win-x64"
+          -d Version=${{ needs.release-meta.outputs.version }}
           -o "Whisper-${{ steps.version.outputs.version }}.msi"
 
       - name: Upload artifacts
@@ -102,16 +128,34 @@ jobs:
             Whisper-Windows-*.zip
             Whisper-*.msi
 
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [release-meta, build-mac, build-windows]
+    steps:
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-mac
+          path: release-assets
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-windows
+          path: release-assets
+
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.release-meta.outputs.tag }}
           files: |
-            Whisper-Windows-*.zip
-            Whisper-*.msi
+            release-assets/Whisper-*.dmg
+            release-assets/Whisper-*.pkg
+            release-assets/Whisper-Windows-*.zip
+            release-assets/Whisper-*.msi
           generate_release_notes: true
           body: |
-            Unsigned (no code-signing certificate) -- Windows SmartScreen
-            will warn on first run. Click "More info" > "Run anyway".
-            The .msi installs to Program Files + Start Menu; the .zip is a
-            portable, no-install copy.
+            Unsigned release (no Apple Developer ID or Windows signing certificate).
+            macOS: right-click Whisper.app and choose Open on first launch.
+            Windows: click "More info" > "Run anyway" in SmartScreen.
+            The Windows .msi installs to Program Files + Start Menu; the .zip is portable.
