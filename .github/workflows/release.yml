@@ -13,15 +13,14 @@ permissions:
 jobs:
   release-meta:
     runs-on: ubuntu-latest
-    if: >
-      startsWith(github.ref, 'refs/tags/') ||
-      contains(github.event.head_commit.modified, 'VERSION') ||
-      contains(github.event.head_commit.added, 'VERSION')
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      should_tag: ${{ steps.check.outputs.should_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Read release version
         id: version
@@ -37,8 +36,24 @@ jobs:
         shell: bash
         run: test "$GITHUB_REF_NAME" = "v$(tr -d '[:space:]' < VERSION)"
 
-      - name: Create release tag from main
+      - name: Check whether this branch push touched VERSION
+        id: check
         if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          # git diff, not the push webhook's head_commit.modified/added —
+          # that field is populated inconsistently (empty on some pushes,
+          # e.g. multi-commit pushes or certain mirrors/forced-pushes) and
+          # silently skips the whole job with no run recorded when it's
+          # wrong, which is exactly the bug this replaced.
+          if git diff --name-only HEAD^ HEAD -- VERSION | grep -qx VERSION; then
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release tag from main
+        if: github.ref == 'refs/heads/main' && steps.check.outputs.should_tag == 'true'
         env:
           TAG: ${{ steps.version.outputs.tag }}
         shell: bash
