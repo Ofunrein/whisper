@@ -6,8 +6,6 @@ on:
       - main
     tags:
       - "v*"
-    paths:
-      - "VERSION"
 
 permissions:
   contents: write
@@ -15,6 +13,10 @@ permissions:
 jobs:
   release-meta:
     runs-on: ubuntu-latest
+    if: >
+      startsWith(github.ref, 'refs/tags/') ||
+      contains(github.event.head_commit.modified, 'VERSION') ||
+      contains(github.event.head_commit.added, 'VERSION')
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
