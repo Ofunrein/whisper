@@ -13,7 +13,24 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!--
+      Framework-dependent WindowsAppSDK deployment (the default/standard way to ship
+      WinUI3 apps). Self-contained WindowsAppSDK deployment was shipping without the
+      reg-free WinRT activation manifest entries this WindowsAppSDK version needs,
+      causing a 0xc000027b STATUS_STOWED_EXCEPTION crash in Microsoft.UI.Xaml.dll on
+      every launch (confirmed via CI: mt.exe dump of the embedded manifest had zero
+      activatableClass/ui.xaml entries). Framework-dependent relies on the Windows App
+      Runtime being installed on the machine (see Installer/Package.wxs, which bundles
+      and silently installs the official redistributable) plus the WindowsPackageType=None
+      automatic bootstrapper support for unpackaged apps (see Microsoft's "Windows App SDK
+      deployment guide for framework-dependent apps packaged with external location or
+      unpackaged").
+      Note: this is independent of .NET's own SelfContained (dotnet publish "self
+      contained" flag) publish setting, which stays true (see release.yml) so the app
+      still carries its own .NET 8 CLR and doesn't need a separate .NET Desktop Runtime
+      prerequisite. Only the Windows App Runtime is an added install-time dependency.
+    -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <Version>0.0.0</Version>
   </PropertyGroup>
 

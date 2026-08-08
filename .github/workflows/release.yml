@@ -104,12 +104,38 @@ jobs:
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2
 
-      - name: Publish self-contained app
+      - name: Download Windows App Runtime redistributable installer
+        # Framework-dependent WindowsAppSDK deployment (see Whisper.App.csproj) needs
+        # the Windows App Runtime installed on the target machine. Bundle the official
+        # standalone installer into the MSI (see Installer/Package.wxs) instead of
+        # requiring a separate manual download. Version pinned to match the exact
+        # Microsoft.WindowsAppSDK NuGet package version referenced by the app
+        # (1.8.260529003) so the installed runtime is guaranteed compatible.
+        # URL verified live against https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/downloads-archive
+        shell: pwsh
+        run: |
+          $url = "https://aka.ms/windowsappsdk/1.8/1.8.260529003/windowsappruntimeinstall-x64.exe"
+          $dest = "${{ github.workspace }}\windows\Whisper.App\Installer\WindowsAppRuntimeInstall-x64.exe"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          if (-not (Test-Path $dest) -or (Get-Item $dest).Length -lt 1000000) {
+            Write-Host "::error::Windows App Runtime installer download failed or is suspiciously small"
+            exit 1
+          }
+          Write-Host "Downloaded $dest ($((Get-Item $dest).Length) bytes)"
+
+      - name: Publish framework-dependent app
+        # WindowsAppSDKSelfContained=false (framework-dependent, the default/standard
+        # WinUI3 deployment mode -- see Whisper.App.csproj for why self-contained
+        # WindowsAppSDK deployment was crashing on every launch). This is independent
+        # of .NET's own --self-contained flag: we keep the .NET 8 CLR self-contained
+        # so the MSI doesn't also need to carry a .NET 8 Desktop Runtime prerequisite
+        # check/installer -- only the Windows App Runtime (downloaded above) is an
+        # added install-time dependency.
         run: >
           dotnet publish windows/Whisper.App/Whisper.App.csproj
           -c Release -r win-x64 -p:Platform=x64 --self-contained
           -p:Version=${{ steps.version.outputs.version }}
-          -p:WindowsAppSDKSelfContained=true
+          -p:WindowsAppSDKSelfContained=false
           -o windows/publish/win-x64
           -v:normal
 
@@ -135,6 +161,7 @@ jobs:
           -arch x64
           -d PublishDir="${{ github.workspace }}\windows\publish\win-x64"
           -d Version=${{ needs.release-meta.outputs.version }}
+          -d WindowsAppRuntimeInstaller="${{ github.workspace }}\windows\Whisper.App\Installer\WindowsAppRuntimeInstall-x64.exe"
           -o "Whisper-${{ steps.version.outputs.version }}.msi"
 
       - name: Verify the MSI actually installs silently

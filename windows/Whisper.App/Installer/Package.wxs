@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Minimal WiX v5 installer for the self-contained `dotnet publish` output.
+  Minimal WiX v5 installer for the framework-dependent `dotnet publish` output.
   Uses the Files glob-harvesting element, a v5+ language feature (WiX v4
   still relied on the separate `heat.exe` harvester for this).
   Built in CI on windows-latest (`wix build`, see .github/workflows/release.yml);
   the WiX toolset only fully works on Windows, so this isn't locally
   verifiable on macOS beyond XML well-formedness.
 
-  PublishDir and Version are passed in via `-d`:
-    wix build Package.wxs -d PublishDir=..\publish\win-x64 -d Version=1.2.3 -arch x64 -o Whisper.msi
+  PublishDir, Version, and WindowsAppRuntimeInstaller are passed in via `-d`:
+    wix build Package.wxs -d PublishDir=..\publish\win-x64 -d Version=1.2.3 \
+      -d WindowsAppRuntimeInstaller=..\WindowsAppRuntimeInstall-x64.exe -arch x64 -o Whisper.msi
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
@@ -33,6 +34,47 @@
     -->
     <MajorUpgrade DowngradeErrorMessage="A newer version of Whisper is already installed." />
     <MediaTemplate EmbedCab="yes" />
+
+    <!--
+      Whisper.App.csproj now deploys framework-dependent (WindowsAppSDKSelfContained=false),
+      so the Windows App Runtime (Microsoft.WindowsAppSDK 1.8.260529003) must be present on
+      the machine. Bundle Microsoft's official standalone redistributable installer
+      (windowsappruntimeinstall-x64.exe, downloaded in CI, see
+      .github/workflows/release.yml, from
+      https://aka.ms/windowsappsdk/1.8/1.8.260529003/windowsappruntimeinstall-x64.exe,
+      version-pinned to match the exact WindowsAppSDK package version this app was built
+      against) and run it silently during install.
+
+      No separate "already installed" registry check is added here: Microsoft's own docs
+      for this installer state that if all of its MSIX packages are already registered on
+      the machine, "the installation is not performed", i.e. the installer is already a
+      safe, idempotent no-op when another app already brought the runtime. Re-invoking it
+      on every install/upgrade is therefore not a redundant real reinstall, just a fast
+      no-op check, so no extra WiX-level detection condition is needed beyond NOT Installed
+      (which just avoids re-running it on repair of an already-installed product).
+
+      HIGH CONFIDENCE: the installer URL/version and its documented quiet flag and
+      idempotency behavior (verified against Microsoft's own "Windows App SDK deployment
+      guide for framework-dependent apps packaged with external location or unpackaged").
+      BEST-EFFORT / genuinely unverifiable without a real Windows box: the exact
+      CustomAction sequencing below (After="InstallFiles", Execute="deferred",
+      Impersonate="no") is the standard WiX pattern for chaining an elevated prerequisite
+      installer, but it has not been run end-to-end against a real MSI engine. If CI's
+      "Verify the MSI actually installs silently" or "Verify the installed app launches"
+      steps fail after this change, check install.log for this action's exit code first.
+    -->
+    <Binary Id="WindowsAppRuntimeInstallerBinary" SourceFile="$(WindowsAppRuntimeInstaller)" />
+    <CustomAction
+        Id="InstallWindowsAppRuntime"
+        BinaryRef="WindowsAppRuntimeInstallerBinary"
+        ExeCommand="--quiet"
+        Execute="deferred"
+        Impersonate="no"
+        Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action="InstallWindowsAppRuntime" After="InstallFiles">NOT Installed</Custom>
+    </InstallExecuteSequence>
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Whisper" />
