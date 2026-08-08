@@ -214,12 +214,21 @@ jobs:
             $mt = Get-ChildItem "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools" -Recurse -Filter mt.exe -ErrorAction SilentlyContinue |
               Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
             if ($mt) {
-              & $mt.FullName -nologo -inputresource:"$exe;#1" -out:$mtDumpPath 2>&1 | Out-Null
-              if (Test-Path $mtDumpPath) {
-                Write-Host "Embedded manifest extracted -- looking for Microsoft.ui.xaml.dll activatable classes:"
-                Select-String -Path $mtDumpPath -Pattern 'ui\.xaml|activatableClass' -SimpleMatch:$false | Select-Object -First 40
+              $mtOutput = & $mt.FullName -nologo -inputresource:"$exe;#1" -out:$mtDumpPath 2>&1
+              Write-Host "mt.exe exit code: $LASTEXITCODE"
+              if ($mtOutput) { Write-Host "mt.exe output: $mtOutput" }
+              if ((Test-Path $mtDumpPath) -and (Get-Item $mtDumpPath).Length -gt 0) {
+                $size = (Get-Item $mtDumpPath).Length
+                Write-Host "Embedded manifest extracted ($size bytes) -- looking for Microsoft.ui.xaml.dll activatable classes:"
+                $matches = Select-String -Path $mtDumpPath -Pattern 'ui\.xaml|activatableClass' -SimpleMatch:$false
+                if ($matches) {
+                  $matches | Select-Object -First 40
+                } else {
+                  Write-Host "No matches -- dumping full manifest content since it's small enough to be worth seeing directly:"
+                  Get-Content $mtDumpPath -Raw
+                }
               } else {
-                Write-Host "mt.exe found but could not extract embedded manifest from $exe."
+                Write-Host "mt.exe found but produced no/empty output file -- extraction genuinely failed, not just 'no matches'."
               }
             } else {
               Write-Host "mt.exe not found under NuGet cache; skipping manifest dump."
