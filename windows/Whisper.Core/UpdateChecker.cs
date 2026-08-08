@@ -6,15 +6,21 @@ namespace Whisper.Core;
 
 /// <summary>
 /// Checks GitHub Releases for a newer tagged version than the running app.
-/// Check-only, mirrors the mac app's UpdateChecker: no silent download or
-/// install, just a link to the release page. Avoids needing a code-signed
-/// update channel before this app has any signing story at all.
+/// Mirrors the mac app's UpdateChecker: pure metadata lookup (including the
+/// release's asset list, so <see cref="Updater"/> can pick out the .msi to
+/// silently install) plus a fallback html_url for the "open the release page"
+/// manual path. Historically this was check-only with no assets parsed --
+/// that reasoning (no code-signed update channel) is the same one the mac
+/// app outgrew: silently replacing an unsigned app with another copy of the
+/// same unsigned app from the same publisher isn't a new trust boundary.
 /// </summary>
 public static class UpdateChecker
 {
     public const string Repo = "Ofunrein/whisper";
 
-    public sealed record Release(string TagName, string HtmlUrl);
+    public sealed record Asset(string Name, string DownloadUrl);
+
+    public sealed record Release(string TagName, string HtmlUrl, IReadOnlyList<Asset> Assets);
 
     public static async Task<Release?> CheckForUpdateAsync(string currentVersion, CancellationToken ct = default)
     {
@@ -33,8 +39,20 @@ public static class UpdateChecker
             var htmlUrl = doc.RootElement.GetProperty("html_url").GetString();
             if (string.IsNullOrEmpty(tagName) || string.IsNullOrEmpty(htmlUrl)) return null;
 
+            var assets = new List<Asset>();
+            if (doc.RootElement.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var assetEl in assetsEl.EnumerateArray())
+                {
+                    var name = assetEl.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+                    var url = assetEl.TryGetProperty("browser_download_url", out var urlEl) ? urlEl.GetString() : null;
+                    if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(url))
+                        assets.Add(new Asset(name, url));
+                }
+            }
+
             var latest = tagName.StartsWith('v') ? tagName[1..] : tagName;
-            return IsNewer(latest, currentVersion) ? new Release(tagName, htmlUrl) : null;
+            return IsNewer(latest, currentVersion) ? new Release(tagName, htmlUrl, assets) : null;
         }
         catch
         {

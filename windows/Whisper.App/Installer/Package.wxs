@@ -17,6 +17,20 @@
       Version="$(Version)"
       UpgradeCode="c9e3d1a0-6b4f-4e2a-9d7c-1a2b3c4d5e6f">
 
+    <!--
+      InstallScope isn't set explicitly -- it defaults to perMachine, which
+      is also the only scope that makes sense given StandardDirectory below
+      is ProgramFiles64Folder. Windows.Core/Updater.cs's silent self-update
+      relies on that: it runs `msiexec /qn` with Verb="runas" to get the UAC
+      elevation prompt a perMachine install needs. If this ever changes to
+      perUser, drop the elevation request in RunMsiExecAsync to match, or
+      the update flow will pop an unnecessary UAC prompt.
+
+      MajorUpgrade + a stable UpgradeCode (below) together are required for
+      `msiexec /i <newer>.msi` to cleanly replace an older install in one
+      step -- both were already present here, so no fix was needed for
+      silent upgrade to work.
+    -->
     <MajorUpgrade DowngradeErrorMessage="A newer version of Whisper is already installed." />
     <MediaTemplate EmbedCab="yes" />
 

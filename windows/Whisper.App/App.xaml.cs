@@ -64,6 +64,13 @@ public partial class App : Application
     /// Uses a raw Win32 MessageBox rather than ContentDialog -- this is a
     /// tray-only app with no window guaranteed to be open (ContentDialog
     /// needs a live XamlRoot, which SettingsWindow only has once opened).
+    ///
+    /// When an update exists, mirrors the mac MenuBar's three-way choice
+    /// (Download & Install / View Release Page / Later) via MB_YESNOCANCEL,
+    /// since a plain Win32 MessageBox can't have custom button labels.
+    /// Download & Install is the default path; anything that goes wrong
+    /// (no .msi asset, download failure, UAC denial, msiexec failure) falls
+    /// back to offering the release page link instead of failing silently.
     private async Task CheckForUpdatesAsync(bool silent)
     {
         var release = await UpdateChecker.CheckForUpdateAsync(CurrentVersion);
@@ -78,10 +85,47 @@ public partial class App : Application
 
         var choice = MessageBox(
             0,
-            $"Whisper {release.TagName} is available. You're on {CurrentVersion}.\n\nOpen the download page?",
+            $"Whisper {release.TagName} is available. You're on {CurrentVersion}.\n\n" +
+            "Yes = Download & Install\nNo = View Release Page\nCancel = Later",
             "Update Available",
-            MB_YESNO);
+            MB_YESNOCANCEL);
 
+        if (choice == IDYES)
+        {
+            await InstallUpdateAsync(release);
+        }
+        else if (choice == IDNO)
+        {
+            await Windows.System.Launcher.LaunchUriAsync(new Uri(release.HtmlUrl));
+        }
+    }
+
+    /// Downloads, installs, and schedules a relaunch. On success the app
+    /// quits itself (Updater.ScheduleRelaunch handles bringing it back up),
+    /// so there's no "success" UI path to design here -- only the failure
+    /// path needs a visible message, with a fallback back to the manual
+    /// release-page link.
+    private async Task InstallUpdateAsync(UpdateChecker.Release release)
+    {
+        var result = await Updater.DownloadAndInstallAsync(release);
+        if (result.Outcome is Updater.UpdateOutcome.Success or Updater.UpdateOutcome.RestartRequired)
+        {
+            Application.Current.Exit();
+            return;
+        }
+
+        var message = result.Outcome switch
+        {
+            Updater.UpdateOutcome.NoMsiAsset =>
+                "This release doesn't have a Windows installer Whisper knows how to install automatically.",
+            Updater.UpdateOutcome.ElevationDenied =>
+                "The update needs administrator permission, which wasn't granted.",
+            Updater.UpdateOutcome.DownloadFailed =>
+                $"Couldn't download the update: {result.Detail}",
+            _ => $"Installer failed: {result.Detail}",
+        };
+
+        var choice = MessageBox(0, $"{message}\n\nOpen the download page instead?", "Update Failed", MB_YESNO);
         if (choice == IDYES)
         {
             await Windows.System.Launcher.LaunchUriAsync(new Uri(release.HtmlUrl));
@@ -90,7 +134,9 @@ public partial class App : Application
 
     private const uint MB_OK = 0x0;
     private const uint MB_YESNO = 0x4;
+    private const uint MB_YESNOCANCEL = 0x3;
     private const int IDYES = 6;
+    private const int IDNO = 7;
 
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
     private static extern int MessageBox(nint hWnd, string text, string caption, uint type);
