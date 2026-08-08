@@ -143,3 +143,59 @@ ships.
   current unsigned distribution -- Windows will show a SmartScreen warning
   on first run until that's addressed (or not, if that's an accepted
   tradeoff same as on mac).
+
+## Troubleshooting: the app doesn't open
+
+If double-clicking `Whisper.App.exe` (from the zip) or launching after MSI
+install does nothing -- no window, no error, no tray icon -- the build
+itself is real and self-contained (CI does `dotnet publish -r win-x64
+--self-contained -p:WindowsAppSDKSelfContained=true`, which bundles the
+.NET runtime and all Windows App SDK native DLLs into the output; a
+missing ".NET Desktop Runtime" is *not* the cause here the way it would be
+for a framework-dependent build). Work through these in order:
+
+1. **SmartScreen / Mark-of-the-Web.** Anything downloaded from a browser
+   gets tagged with a hidden zone-identifier stream. For the `.msi`, just
+   click "More info" -> "Run anyway" on the SmartScreen dialog if it
+   appears. For the portable `.zip`: unblock the zip itself *before*
+   extracting -- right-click `Whisper-Windows-*.zip` -> Properties ->
+   check "Unblock" at the bottom -> OK -> then extract. If you already
+   extracted first, every extracted file carries its own copy of the tag,
+   so instead right-click `Whisper.App.exe` -> Properties -> "Unblock" ->
+   OK. Same idea as the macOS Gatekeeper right-click-Open note above, just
+   the Windows version of it.
+2. **Antivirus / Windows Defender silently quarantining it.** This app is
+   unsigned and does things that look exactly like heuristic-flagged
+   malware behavior to AV engines: a global low-level keyboard/mouse hook
+   (`HotkeyManager`'s `WH_KEYBOARD_LL`/`WH_MOUSE_LL`), synthetic input
+   injection (`PasteService`'s `SendInput`), and credential storage
+   (`CredentialStore`'s `CredWrite`/`CredRead`). Some AV products quarantine
+   silently (auto-sample-submission) with no visible prompt -- if nothing
+   else here explains it, check Windows Security -> Protection history for
+   a recent detection/quarantine of `Whisper.App.exe`, and add an exclusion
+   or restore it from quarantine if found.
+3. **OS version too old.** The app targets
+   `net8.0-windows10.0.19041.0` (Windows 10 version 2004 / build 19041,
+   May 2020 update) as its floor, since that's what the Windows App SDK
+   runtime bootstrap requires. On an older Windows 10 build, the App SDK
+   bootstrap can fail during native initialization before any window or
+   message box ever gets a chance to appear -- i.e. exactly a silent
+   "nothing happens" failure. Check Settings -> System -> About for the OS
+   build number; update Windows if it's older than 19041.
+4. **Windows N/KN edition missing the Media Feature Pack.** Not a launch
+   blocker by itself (this would surface as a crash on first recording
+   attempt, not at startup), but worth ruling out early since it's another
+   "just doesn't work, no obvious error" report: `AudioRecorder` uses
+   NAudio's `MediaFoundationResampler`, which depends on Windows Media
+   Foundation. "N"/"KN" SKUs of Windows (EU/Korea editions sold without
+   media features) don't include it by default -- install the "Media
+   Feature Pack for N/KN editions" from Windows Update / Microsoft's
+   download page if applicable.
+
+None of the above has been confirmed against a real failure report (no
+Windows machine or captured error was available when this was written) --
+they're the ordered list of what a from-source audit says is most likely,
+most-common-first. If you hit this, the single most useful next step is
+running `Whisper.App.exe` from a `cmd.exe`/PowerShell window instead of
+double-clicking it, so any exception that does print has somewhere to
+land instead of vanishing with the process.

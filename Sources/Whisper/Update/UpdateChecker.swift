@@ -1,18 +1,37 @@
 import Foundation
 
 /// Checks GitHub Releases for a newer tagged version than the running app.
-/// Check-only: opens the release page in the browser for the user to
-/// download manually. No silent download/install -- the app isn't
-/// notarized, so a silently-replaced binary would just hit Gatekeeper
-/// again anyway, and this avoids needing any update-signing story.
+///
+/// Historically this was check-only: it just opened the release page in a
+/// browser for the user to download manually, because the app isn't
+/// notarized and a silently-replaced binary would hit the same Gatekeeper
+/// quarantine wall again on next launch. `Updater` (see Updater.swift) now
+/// handles that: it downloads the release DMG, mounts it, copies
+/// Whisper.app to /Applications, and strips the quarantine attribute from
+/// the freshly-copied app before relaunching -- which is safe because it's
+/// a self-update of the same publisher's app the user already approved
+/// once, not an arbitrary Gatekeeper bypass. The "open release page in
+/// browser" behavior is kept as a manual fallback.
 enum UpdateChecker {
+    struct Asset: Decodable {
+        let name: String
+        let downloadURL: String
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case downloadURL = "browser_download_url"
+        }
+    }
+
     struct Release: Decodable {
         let tagName: String
         let htmlURL: String
+        let assets: [Asset]
 
         enum CodingKeys: String, CodingKey {
             case tagName = "tag_name"
             case htmlURL = "html_url"
+            case assets
         }
     }
 

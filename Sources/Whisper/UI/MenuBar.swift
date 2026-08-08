@@ -132,16 +132,47 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if let release {
             alert.messageText = "Update Available"
             alert.informativeText = "Whisper \(release.tagName) is available. You're on \(UpdateChecker.currentVersion)."
-            alert.addButton(withTitle: "Download")
+            alert.addButton(withTitle: "Download & Install")
+            alert.addButton(withTitle: "View Release Page")
             alert.addButton(withTitle: "Later")
-            if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: release.htmlURL) {
-                NSWorkspace.shared.open(url)
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                installUpdate(release)
+            case .alertSecondButtonReturn:
+                if let url = URL(string: release.htmlURL) {
+                    NSWorkspace.shared.open(url)
+                }
+            default:
+                break
             }
         } else {
             alert.messageText = "You're up to date"
             alert.informativeText = "Whisper \(UpdateChecker.currentVersion) is the latest version."
             alert.addButton(withTitle: "OK")
             alert.runModal()
+        }
+    }
+
+    /// Downloads, installs, and relaunches. On success the app quits itself
+    /// (see Updater.relaunch), so there's no "success" UI path to design here
+    /// -- only the failure path needs a visible alert.
+    private func installUpdate(_ release: UpdateChecker.Release) {
+        Task {
+            do {
+                try await Updater.downloadAndInstall(release)
+            } catch {
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.alertStyle = .warning
+                    alert.messageText = "Update Failed"
+                    alert.informativeText = error.localizedDescription
+                    alert.addButton(withTitle: "View Release Page")
+                    alert.addButton(withTitle: "OK")
+                    if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: release.htmlURL) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
         }
     }
 }
