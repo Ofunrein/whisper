@@ -182,9 +182,21 @@ jobs:
 
           $stillRunning = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
           if (-not $stillRunning) {
-            Write-Host "::error::Whisper.App.exe exited within 5s of launch (exit code: $($proc.ExitCode))"
-            Get-EventLog -LogName Application -Source ".NET Runtime" -Newest 5 -ErrorAction SilentlyContinue |
-              Format-List TimeGenerated, Message
+            $code = "0x{0:X8}" -f $proc.ExitCode
+            Write-Host "::error::Whisper.App.exe exited within 5s of launch (exit code: $($proc.ExitCode) / $code)"
+
+            # 0xC0000135 = STATUS_DLL_NOT_FOUND -- a native loader failure
+            # before managed code (and any App.OnLaunched try/catch) ever
+            # runs, so the .NET Runtime event source won't have it. The
+            # Application log's generic error source (SideBySide /
+            # Application Error, event 1000) is where the loader records
+            # which specific DLL it couldn't resolve.
+            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-2)} -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'Whisper' -or $_.ProviderName -match 'SideBySide|Application Error|.NET Runtime' } |
+              Format-List TimeGenerated, ProviderName, Id, Message
+
+            Write-Host "--- Publish output DLLs (for comparison) ---"
+            Get-ChildItem "C:\Program Files\Whisper" -Filter *.dll | Select-Object Name | Sort-Object Name
             exit 1
           }
 
