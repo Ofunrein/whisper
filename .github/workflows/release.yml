@@ -197,6 +197,41 @@ jobs:
 
             Write-Host "--- Publish output DLLs (for comparison) ---"
             Get-ChildItem "C:\Program Files\Whisper" -Filter *.dll | Select-Object Name | Sort-Object Name
+
+            # Forensics for the specific 0xc000027b / Microsoft.UI.Xaml.dll
+            # fault this step exists to catch. Exit code alone can't
+            # distinguish "VC++ runtime missing" from "reg-free WinRT
+            # activation manifest wrong/missing" -- these three checks do:
+            Write-Host "--- VC++ runtime presence (candidate: missing/mismatched CRT) ---"
+            foreach ($crt in 'VCRUNTIME140.dll','VCRUNTIME140_1.dll','MSVCP140.dll','ucrtbase.dll') {
+              $found = Get-ChildItem "C:\Program Files\Whisper" -Filter $crt -ErrorAction SilentlyContinue
+              $sys32 = Test-Path "C:\Windows\System32\$crt"
+              Write-Host "$crt -- app-local: $([bool]$found), System32: $sys32"
+            }
+
+            Write-Host "--- Embedded reg-free WinRT activation manifest (candidate: self-contained WinRT registration) ---"
+            $mtDumpPath = "manifest-dump.xml"
+            $mt = Get-ChildItem "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools" -Recurse -Filter mt.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+            if ($mt) {
+              & $mt.FullName -nologo -inputresource:"$exe;#1" -out:$mtDumpPath 2>&1 | Out-Null
+              if (Test-Path $mtDumpPath) {
+                Write-Host "Embedded manifest extracted -- looking for Microsoft.ui.xaml.dll activatable classes:"
+                Select-String -Path $mtDumpPath -Pattern 'ui\.xaml|activatableClass' -SimpleMatch:$false | Select-Object -First 40
+              } else {
+                Write-Host "mt.exe found but could not extract embedded manifest from $exe."
+              }
+            } else {
+              Write-Host "mt.exe not found under NuGet cache; skipping manifest dump."
+            }
+
+            Write-Host "--- WindowsAppSDK component package versions actually restored (candidate: version skew) ---"
+            Get-ChildItem "windows\Whisper.App\obj" -Filter project.assets.json -Recurse -ErrorAction SilentlyContinue |
+              ForEach-Object {
+                $assets = Get-Content $_.FullName -Raw | ConvertFrom-Json
+                $assets.libraries.PSObject.Properties.Name | Where-Object { $_ -match '^Microsoft\.WindowsAppSDK' } | Sort-Object
+              }
+
             exit 1
           }
 

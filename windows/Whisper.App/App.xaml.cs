@@ -33,27 +33,63 @@ public partial class App : Application
 
     public App()
     {
+        // WinUI installs no default handler for exceptions thrown before or
+        // during OnLaunched -- an unhandled one kills the process instantly
+        // with no dialog, which is exactly the "just didn't open" symptom
+        // this app was originally reported for. These hooks can't catch a
+        // true native fail-fast (e.g. a stowed-exception/0xc000027b crash
+        // inside Microsoft.UI.Xaml.dll itself, which bypasses managed SEH
+        // by design), but they do catch any *managed* exception thrown
+        // during startup -- from AppDomain-level (thread pool/finalizer/etc)
+        // down to this.UnhandledException (WinUI's own XAML-dispatcher-
+        // thread hook) -- and surface it instead of failing silently.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            ReportFatalStartupException(e.ExceptionObject as Exception, "AppDomain.UnhandledException");
+        UnhandledException += (_, e) =>
+        {
+            ReportFatalStartupException(e.Exception, "Application.UnhandledException");
+            e.Handled = true;
+        };
+
         InitializeComponent();
+    }
+
+    private static void ReportFatalStartupException(Exception? ex, string source)
+    {
+        MessageBox(
+            0,
+            $"Whisper hit an unexpected error during startup and needs to close.\n\n" +
+            $"Source: {source}\n{ex}",
+            "Whisper failed to start",
+            MB_OK);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _hotkeys.Binding = _settings.Settings.Bindings.Count > 0
-            ? _settings.Settings.Bindings[0]
-            : HotkeyBinding.DefaultRightControl();
-        _hotkeys.RecordingStarted += OnRecordingStarted;
-        _hotkeys.RecordingStopped += OnRecordingStopped;
-        _hotkeys.RecordingToggled += OnRecordingToggled;
-        _hotkeys.Start();
+        try
+        {
+            _hotkeys.Binding = _settings.Settings.Bindings.Count > 0
+                ? _settings.Settings.Bindings[0]
+                : HotkeyBinding.DefaultRightControl();
+            _hotkeys.RecordingStarted += OnRecordingStarted;
+            _hotkeys.RecordingStopped += OnRecordingStopped;
+            _hotkeys.RecordingToggled += OnRecordingToggled;
+            _hotkeys.Start();
 
-        _indicator.StopRequested += OnIndicatorStopRequested;
+            _indicator.StopRequested += OnIndicatorStopRequested;
 
-        _tray.SettingsRequested += ShowSettings;
-        _tray.QuitRequested += () => Environment.Exit(0);
-        _tray.CheckForUpdatesRequested += () => _ = CheckForUpdatesAsync(silent: false);
-        _tray.Create();
+            _tray.SettingsRequested += ShowSettings;
+            _tray.QuitRequested += () => Environment.Exit(0);
+            _tray.CheckForUpdatesRequested += () => _ = CheckForUpdatesAsync(silent: false);
+            _tray.Create();
 
-        _ = CheckForUpdatesAsync(silent: true);
+            _ = CheckForUpdatesAsync(silent: true);
+        }
+        catch (Exception ex)
+        {
+            ReportFatalStartupException(ex, nameof(OnLaunched));
+            throw;
+        }
     }
 
     private static string CurrentVersion =>
