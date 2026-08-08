@@ -137,6 +137,69 @@ jobs:
           -d Version=${{ needs.release-meta.outputs.version }}
           -o "Whisper-${{ steps.version.outputs.version }}.msi"
 
+      - name: Verify the MSI actually installs silently
+        shell: pwsh
+        run: |
+          $msi = "Whisper-${{ steps.version.outputs.version }}.msi"
+          $log = "install.log"
+
+          # This is the runner's built-in Administrator account, not a UAC
+          # prompt -- so it can't verify Updater.cs's Verb="runas" elevation
+          # request itself, only that /qn produces a real, non-broken
+          # install once elevated. That's the actual unverified risk from
+          # today's WIX0104 bug: whether the MSI installs cleanly at all.
+          $proc = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart /l*v `"$log`"" -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            Write-Host "::error::msiexec exited with code $($proc.ExitCode)"
+            Get-Content $log -Tail 60
+            exit 1
+          }
+
+          $installedExe = "C:\Program Files\Whisper\Whisper.App.exe"
+          if (-not (Test-Path $installedExe)) {
+            Write-Host "::error::Install reported success but $installedExe doesn't exist"
+            Get-ChildItem "C:\Program Files\Whisper" -Recurse -ErrorAction SilentlyContinue
+            exit 1
+          }
+          Write-Host "Installed OK: $installedExe"
+
+      - name: Verify the installed app launches without crashing
+        shell: pwsh
+        run: |
+          $exe = "C:\Program Files\Whisper\Whisper.App.exe"
+
+          # This is the same silent-crash-on-launch class of bug reported
+          # against a real Windows machine: an unhandled exception in
+          # App.OnLaunched() (WinUI installs no default handler) kills the
+          # process instantly with no dialog. A process that's still alive
+          # after a few seconds is the strongest signal available in CI
+          # that this isn't happening -- it can't verify tray icon
+          # rendering, hotkey registration, or actual recording (those need
+          # a real audio device and interactive desktop session), only that
+          # startup itself doesn't throw and die.
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 5
+
+          $stillRunning = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+          if (-not $stillRunning) {
+            Write-Host "::error::Whisper.App.exe exited within 5s of launch (exit code: $($proc.ExitCode))"
+            Get-EventLog -LogName Application -Source ".NET Runtime" -Newest 5 -ErrorAction SilentlyContinue |
+              Format-List TimeGenerated, Message
+            exit 1
+          }
+
+          Write-Host "Launched OK, still running after 5s (PID $($proc.Id))"
+          Stop-Process -Id $proc.Id -Force
+
+      - name: Uninstall the test install
+        if: always()
+        shell: pwsh
+        run: |
+          $msi = "Whisper-${{ steps.version.outputs.version }}.msi"
+          if (Test-Path $msi) {
+            Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /norestart" -Wait
+          }
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
