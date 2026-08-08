@@ -73,7 +73,7 @@
         Return="check" />
 
     <InstallExecuteSequence>
-      <Custom Action="InstallWindowsAppRuntime" After="InstallFiles">NOT Installed</Custom>
+      <Custom Action="InstallWindowsAppRuntime" After="InstallFiles" Condition="NOT Installed" />
     </InstallExecuteSequence>
 
     <StandardDirectory Id="ProgramFiles64Folder">
