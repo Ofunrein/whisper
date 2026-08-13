@@ -32,6 +32,18 @@
     -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <Version>0.0.0</Version>
+    <!--
+      Own Main() (Program.cs) instead of the XAML-compiler-generated one: a failure
+      inside Microsoft.UI.Xaml.dll's Application.Start() itself is a native fail-fast
+      (STATUS_STOWED_EXCEPTION / 0xc000027b, confirmed via dotnet-dump clrstack on a
+      real repro, see issue #1) that terminates the process before App()'s
+      constructor, InitializeComponent(), or any of its exception handlers ever run.
+      It bypasses managed SEH by design and can't be caught in-process. The only thing
+      reachable before that fail-fast is whatever runs earlier in Main() itself, so
+      that's where a best-effort startup diagnostic (Program.WriteStartupDiagnostics)
+      has to live; it can't be moved into App() because App() may never be reached.
+    -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
