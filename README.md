@@ -1,6 +1,6 @@
 # Whisper
 
-Native macOS dictation app. Hold a hotkey, speak, release, then Whisper transcribes, optionally cleans up, and pastes at your cursor in any app.
+Native macOS dictation app. Hold a hotkey(or mouse button), speak, release, then Whisper transcribes, optionally cleans up, and pastes at your cursor in any app.
 
 ## Install
 
