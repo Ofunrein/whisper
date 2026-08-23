@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Compiles Whisper.App's AudioRecorder.cs on its own against NAudio, with none
+    of the WinUI3/WindowsAppSDK dependencies the app project carries. Two jobs:
+
+      1. `dotnet build` works on macOS (EnableWindowsTargeting), so the Windows
+         audio code is compile-checked on the machine it's written on rather
+         than only in CI.
+      2. `dotnet run` on a real Windows runner exercises the stale-endpoint
+         fallback (see Program.cs) without needing any particular microphone,
+         or, on GitHub's runners, any microphone at all.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>Whisper.Tools.MicFallbackCheck</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same NAudio version as Whisper.App.csproj; keep them in step. -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Whisper.App\Audio\AudioRecorder.cs" Link="AudioRecorder.cs" />
+  </ItemGroup>
+
+</Project>

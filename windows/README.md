@@ -125,6 +125,36 @@ Or from the command line: `dotnet publish windows/Whisper.App -c Release
 -r win-x64 --self-contained -o publish` produces the same portable EXE CI
 ships.
 
+## Checking the mic fallback
+
+`windows/tools/MicFallbackCheck` compiles `Whisper.App/Audio/AudioRecorder.cs`
+on its own against NAudio -- no WinUI3, no Windows App SDK -- so it builds on
+macOS too:
+
+```
+dotnet build windows/tools/MicFallbackCheck    # works on macOS (EnableWindowsTargeting)
+dotnet run  --project windows/tools/MicFallbackCheck   # Windows only
+```
+
+Run on Windows it asserts that a stale `PreferredInputDeviceId` (a persisted
+MMDevice endpoint ID left behind by an unplugged mic) resolves to "use the
+system default" instead of throwing out of `MMDeviceEnumerator.GetDevice` --
+which used to kill the app on hotkey press, since `Start()` is called straight
+from the hotkey handler. CI runs it on `windows-latest`, where there are no
+audio endpoints at all, so it verifies the stale-ID handling and reports the
+"resolves to a real microphone" half as skipped. On a machine with any
+microphone attached, that half runs too.
+
+What still needs a real Windows box with a microphone -- any microphone, no
+particular model:
+
+1. Pick a mic in Settings, quit the app, unplug that mic (or edit
+   `%APPDATA%\Whisper\settings.json` and set `"PreferredInputDeviceId"` to
+   `"{0.0.1.00000000}.{deadbeef-dead-beef-dead-beefdeadbeef}"`).
+2. Launch, hold the record hotkey. The app must stay alive and record from
+   the default mic; before the fallback it died instantly with no dialog.
+3. Plug the mic back in, record again, and confirm audio still transcribes.
+
 ## Known gaps to check first when it's actually running
 
 - `HotkeyManager`'s `WH_MOUSE_LL` hook does read `MSLLHOOKSTRUCT.mouseData`'s

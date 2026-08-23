@@ -10,7 +10,14 @@ namespace Whisper.App.Audio;
 /// straight off the default render device, no process-tap/permission dance
 /// needed. Still off by default per Settings.RecordSystemAudio.
 ///
-/// NOT compiled/tested in this environment (no Windows machine available).
+/// No Windows machine available here, so this is not RUN-tested locally; it is
+/// however compile-checked on macOS via windows/tools/MicFallbackCheck, which
+/// builds this file alone against NAudio for net8.0-windows
+/// (EnableWindowsTargeting=true) and so doesn't need the WinUI3/WindowsAppSDK
+/// bits the rest of Whisper.App pulls in. That same project is RUN on real
+/// Windows in CI to check the stale-endpoint fallback below; the rest of the
+/// end-to-end coverage comes from the release workflow's MSI install + launch
+/// steps.
 public sealed class AudioRecorder : IDisposable
 {
     private static readonly WaveFormat TargetFormat = new(16_000, 16, 1);
@@ -34,9 +41,7 @@ public sealed class AudioRecorder : IDisposable
         _loopbackBuffer = RecordSystemAudio ? new MemoryStream() : null;
 
         var enumerator = new MMDeviceEnumerator();
-        var micDevice = preferredDeviceId != null
-            ? enumerator.GetDevice(preferredDeviceId)
-            : enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
+        var micDevice = ResolveMicDevice(enumerator, preferredDeviceId);
 
         _mic = new WasapiCapture(micDevice);
         _mic.DataAvailable += (_, e) => OnData(e, isMic: true);
@@ -48,6 +53,48 @@ public sealed class AudioRecorder : IDisposable
             _loopback.DataAvailable += (_, e) => OnData(e, isMic: false);
             _loopback.StartRecording();
         }
+    }
+
+    /// Resolve the pinned capture device, falling back to the system default.
+    ///
+    /// `PreferredInputDeviceId` is a persisted MMDevice endpoint ID. It goes
+    /// stale whenever that mic is unplugged, and a USB mic (FIFINE, Yeti) can
+    /// also come back on a different endpoint ID after a replug or a port
+    /// change. `GetDevice` throws a COMException for an unknown ID, and it can
+    /// also hand back an endpoint that is present but not active (unplugged
+    /// but still cached), which then fails inside WasapiCapture instead.
+    ///
+    /// Start() is called straight from the record-hotkey handler with no
+    /// try/catch around it, so either throw was an unhandled exception on the
+    /// UI thread -- i.e. pressing the hotkey killed the app. Degrading to the
+    /// default mic is strictly better than dying.
+    ///
+    /// Split from `TryGetActiveDevice` so the stale-ID decision is checkable on
+    /// a machine with no capture endpoint at all (GitHub's Windows runners have
+    /// none), which the default-endpoint call here can't be.
+    internal static MMDevice ResolveMicDevice(MMDeviceEnumerator enumerator, string? preferredDeviceId)
+        => TryGetActiveDevice(enumerator, preferredDeviceId)
+           ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
+
+    /// The pinned device if it's present and active, else null meaning "fall
+    /// back to the system default". Never throws: an unknown/stale ID is an
+    /// expected state, not an error.
+    internal static MMDevice? TryGetActiveDevice(MMDeviceEnumerator enumerator, string? preferredDeviceId)
+    {
+        if (preferredDeviceId == null) return null;
+
+        try
+        {
+            var device = enumerator.GetDevice(preferredDeviceId);
+            if (device.State == DeviceState.Active) return device;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"AudioRecorder: preferred input '{preferredDeviceId}' unavailable ({ex.Message}), using default");
+        }
+
+        return null;
     }
 
     private void OnData(WaveInEventArgs e, bool isMic)
