@@ -46,6 +46,10 @@ final class AudioRecorder: ObservableObject {
     private var rebuildWorkItem: DispatchWorkItem?
     private var repinWorkItem: DispatchWorkItem?
     private var defaultInputListener: AudioObjectPropertyListenerBlock?
+    private var deviceListListener: AudioObjectPropertyListenerBlock?
+    /// Whether the pinned mic was present in the device list at the last
+    /// check, so a replug can be distinguished from unrelated list churn.
+    private var pinnedDevicePresent = false
     /// Engines replaced by `reconfigure()`, held past any in-flight AVFAudio
     /// callback. See the comment in `reconfigure()`.
     private var retiredEngines: [AVAudioEngine] = []
@@ -63,11 +67,15 @@ final class AudioRecorder: ObservableObject {
     init() {
         observeEngine()
         observeDefaultInputDevice()
+        observeDeviceList()
     }
 
     deinit {
         if let listener = defaultInputListener {
             AudioDevices.removeDefaultInputDeviceListener(listener)
+        }
+        if let listener = deviceListListener {
+            AudioDevices.removeDeviceListListener(listener)
         }
         if let o = configObserver { NotificationCenter.default.removeObserver(o) }
     }
@@ -120,6 +128,41 @@ final class AudioRecorder: ObservableObject {
                 self.scheduleRepin()
             }
         }
+    }
+
+    /// Re-assert the pinned mic when it is plugged back in.
+    ///
+    /// A USB mic replug (FIFINE, Yeti) frequently changes neither the system
+    /// default input nor the engine graph, so neither of the other two
+    /// listeners fires and the pin was never re-applied — the app kept
+    /// recording from whatever device took over while the mic was unplugged.
+    /// Only act on the disappeared -> reappeared edge; the device list also
+    /// churns for unrelated reasons (virtual devices, screen-share audio) and
+    /// re-pinning on every notification would reintroduce the pin/rebuild
+    /// storm the circuit breaker exists to stop.
+    private func observeDeviceList() {
+        // Seed so a mic already present at launch isn't treated as a replug.
+        pinnedDevicePresent = currentPinnedDeviceExists()
+        deviceListListener = AudioDevices.addDeviceListListener { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                let present = self.currentPinnedDeviceExists()
+                defer { self.pinnedDevicePresent = present }
+                guard present, !self.pinnedDevicePresent else { return }
+                NSLog("AudioRecorder: pinned input device reappeared, re-pinning")
+                // A replug is a genuinely new situation: clear the circuit
+                // breaker so a mic that was suspended earlier gets a fresh
+                // chance instead of staying permanently unpinnable.
+                self.pinFailures = 0
+                self.pinSuspended = false
+                self.scheduleRepin()
+            }
+        }
+    }
+
+    private func currentPinnedDeviceExists() -> Bool {
+        guard let wanted = SettingsStore.shared.settings.preferredInputDevice else { return false }
+        return AudioDevices.deviceID(named: wanted) != nil
     }
 
     /// Debounced re-pin, separate from the full engine `reconfigure()` path.
@@ -229,6 +272,12 @@ final class AudioRecorder: ObservableObject {
         let started = startTime
         var raw = pcm
         pcm.removeAll(keepingCapacity: false)
+        // Read the mic peak under the same lock the audio thread writes it
+        // with. Previously this was an unsynchronized read of a Float written
+        // on the render thread: `stop()` could observe a stale 0 for a take
+        // that had real speech in it and throw the recording away as silent.
+        // That is the intermittent "I talked and nothing got typed" failure.
+        let micPeak = peakLevel
         lock.unlock()
 
         var systemPeak: Float = 0
@@ -248,8 +297,8 @@ final class AudioRecorder: ObservableObject {
         // which would paste garbage on an accidental hotkey press. Checked
         // against mic AND system audio peak so a quiet mic doesn't discard
         // a take that's carrying real system audio (e.g. meeting playback).
-        if peakLevel < 0.03 && systemPeak < 0.03 {
-            NSLog("AudioRecorder: discarding silent take (peak %.3f, system %.3f)", peakLevel, systemPeak)
+        if micPeak < 0.03 && systemPeak < 0.03 {
+            NSLog("AudioRecorder: discarding silent take (peak %.3f, system %.3f)", micPeak, systemPeak)
             return nil
         }
         return Self.wav(fromPCM: raw, sampleRate: 16_000, channels: 1, bitsPerSample: 16)
@@ -269,8 +318,17 @@ final class AudioRecorder: ObservableObject {
             reconfigure()
             return engineRunning
         }
-        let input = engine.inputNode
+        // Pin BEFORE touching `engine.inputNode`. The first access to
+        // inputNode instantiates the IO node and binds it to whatever the
+        // system default input is at that instant, caching that device's
+        // format. Pinning afterwards left the node bound to the outgoing
+        // device (e.g. AirPods at 24kHz mono) while the hardware had already
+        // moved to the pinned mic (FIFINE at 48kHz stereo), so the engine
+        // either started against a stale format or immediately fired a
+        // configuration change and rebuilt. Setting the default first means
+        // the node is created already pointing at the right device.
         applyPreferredDevice()
+        let input = engine.inputNode
         let hwFormat = input.outputFormat(forBus: 0)
         guard hwFormat.sampleRate > 0 else {
             NSLog("AudioRecorder: input format sampleRate=0 (no mic access or no input device)")
@@ -446,13 +504,24 @@ final class AudioRecorder: ObservableObject {
         guard let ch = buffer.floatChannelData else { return }
         let frames = Int(buffer.frameLength)
         guard frames > 0 else { return }
-        var sum: Float = 0
-        let samples = ch[0]
-        for i in 0..<frames { let s = samples[i]; sum += s * s }
-        let rms = sqrtf(sum / Float(frames))
+        // Take the loudest channel, not channel 0. USB mics commonly present
+        // as 2-channel (the FIFINE does, at 48kHz stereo) and some put the
+        // capsule on one channel with the other left dead. Measuring only
+        // channel 0 on such a device reads silence for real speech, which
+        // both flatlines the waveform UI and trips the silence gate in
+        // `stop()` so the take is discarded.
+        var rms: Float = 0
+        for c in 0..<Int(buffer.format.channelCount) {
+            var sum: Float = 0
+            let samples = ch[c]
+            for i in 0..<frames { let s = samples[i]; sum += s * s }
+            rms = max(rms, sqrtf(sum / Float(frames)))
+        }
         let norm = min(1, rms * 12) // rough gain to spread quiet speech across 0...1
         smoothed = smoothed * 0.8 + norm * 0.2
+        lock.lock()
         if norm > peakLevel { peakLevel = norm }
+        lock.unlock()
 
         let now = Date()
         guard now.timeIntervalSince(lastLevelPost) >= 1.0 / 30.0 else { return }

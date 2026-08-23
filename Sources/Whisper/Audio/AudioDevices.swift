@@ -74,6 +74,72 @@ enum AudioDevices {
         AudioObjectRemovePropertyListenerBlock(sys, &addr, DispatchQueue.global(qos: .userInitiated), block)
     }
 
+    /// Registers a listener for the hardware *device list* changing — i.e. a
+    /// USB mic being unplugged or plugged back in.
+    ///
+    /// This is a distinct signal from `kAudioHardwarePropertyDefaultInputDevice`
+    /// and neither of the other two listeners covers it. Replugging a USB mic
+    /// (FIFINE, Yeti) does not necessarily change the system default input:
+    /// when the device vanishes CoreAudio moves the default elsewhere, and
+    /// when it comes back macOS commonly *keeps* the fallback as the default.
+    /// No default change means no `kAudioHardwarePropertyDefaultInputDevice`
+    /// notification, and a device merely appearing doesn't invalidate the
+    /// running engine graph either, so no `AVAudioEngineConfigurationChange`.
+    /// Without this listener the pinned mic silently never gets re-asserted
+    /// after a replug and the app keeps recording from the fallback device.
+    /// The callback fires on an internal CoreAudio dispatch queue.
+    @discardableResult
+    static func addDeviceListListener(_ handler: @escaping () -> Void) -> AudioObjectPropertyListenerBlock {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        let sys = AudioObjectID(kAudioObjectSystemObject)
+        let block: AudioObjectPropertyListenerBlock = { _, _ in handler() }
+        let status = AudioObjectAddPropertyListenerBlock(sys, &addr, DispatchQueue.global(qos: .userInitiated), block)
+        if status != noErr {
+            NSLog("AudioDevices: failed to add device list listener (err %d)", status)
+        }
+        return block
+    }
+
+    static func removeDeviceListListener(_ block: @escaping AudioObjectPropertyListenerBlock) {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        let sys = AudioObjectID(kAudioObjectSystemObject)
+        AudioObjectRemovePropertyListenerBlock(sys, &addr, DispatchQueue.global(qos: .userInitiated), block)
+    }
+
+    /// Known dedicated-microphone brands, matched case-insensitively against
+    /// the device name. Deliberately a small allow-list rather than "any USB
+    /// input": USB capture cards, webcams and virtual devices (Camo, Webex,
+    /// OBS) all enumerate as input-capable too and are the wrong default.
+    /// ponytail: allow-list, order = preference. Add names as users report
+    /// mics that should be auto-picked.
+    private static let dedicatedMicMatches = [
+        "yeti", "fifine", "shure", "rode", "røde", "at2020", "audio-technica",
+        "samson", "elgato wave", "hyperx", "blue "
+    ]
+
+    /// First connected input device that looks like a dedicated microphone,
+    /// used only to seed the preference on first run when the user hasn't
+    /// picked one. Returns nil if nothing recognisable is attached, leaving
+    /// the app on the system default.
+    static func preferredDedicatedMicName() -> String? {
+        preferredDedicatedMic(from: inputDeviceNames())
+    }
+
+    /// Pure form of `preferredDedicatedMicName`, split out so it is testable
+    /// without real hardware attached.
+    static func preferredDedicatedMic(from names: [String]) -> String? {
+        for match in dedicatedMicMatches {
+            if let hit = names.first(where: { $0.lowercased().contains(match) }) { return hit }
+        }
+        return nil
+    }
+
     static func inputDevices() -> [(id: AudioDeviceID, name: String)] {
         var addr = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDevices,

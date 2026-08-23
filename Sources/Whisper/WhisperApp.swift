@@ -136,10 +136,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Migration: default hotkey changed Fn -> Right Command. Drop old Fn
         // bindings (re-addable via Settings); ensure at least one binding.
-        // Pin the Yeti X once if present and no mic was chosen yet.
+        // Pin a known dedicated USB mic once, if present and none chosen yet.
+        // This used to match "Yeti" only, so a user on any other USB mic
+        // (e.g. FIFINE) was left with preferredInputDevice == nil — meaning
+        // no pin at all, so the app just followed the system default and got
+        // hijacked by whatever claimed it, typically AirPods connecting
+        // (24kHz mono Bluetooth) instead of the mic sat in front of them.
         if SettingsStore.shared.settings.preferredInputDevice == nil,
-           let yeti = AudioDevices.inputDeviceNames().first(where: { $0.contains("Yeti") }) {
-            SettingsStore.shared.settings.preferredInputDevice = yeti
+           let mic = AudioDevices.preferredDedicatedMicName() {
+            NSLog("WhisperApp: no input device chosen, auto-pinning '%@'", mic)
+            SettingsStore.shared.settings.preferredInputDevice = mic
         }
 
         var migrated = SettingsStore.shared.settings.bindings.filter { $0.kind != .fnKey }
