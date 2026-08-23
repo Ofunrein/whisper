@@ -72,6 +72,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run tests
+        # The suite is hermetic (the one network test is opt-in via
+        # WHISPER_LIVE_STREAM_TEST), so it belongs in front of packaging rather
+        # than only ever running on a developer's machine.
+        run: swift test
+
       - name: Build DMG
         run: ./scripts/make-dmg.sh
 
@@ -100,6 +106,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Check the mic fallback on real Windows
+        # Runs windows/tools/MicFallbackCheck, which compiles AudioRecorder.cs
+        # on its own against NAudio (no WinUI3/WindowsAppSDK) and asserts that a
+        # stale persisted MMDevice endpoint ID degrades to the system default
+        # instead of throwing out of GetDevice -- which killed the app on hotkey
+        # press, because Start() is called straight from the hotkey handler.
+        # These runners have no audio endpoints at all, so the check verifies
+        # the stale-ID handling and reports "resolves to a real microphone" as
+        # skipped (::warning::) rather than pretending to cover it. No specific
+        # microphone model is required either way.
+        run: dotnet run --project windows/tools/MicFallbackCheck -c Release
 
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2
