@@ -20,6 +20,14 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <!-- Menu-bar-only app: no Dock icon, and no window at launch. Without
+         this, macOS treats Whisper as a regular foreground app and opens its
+         only SwiftUI Scene (the placeholder `Settings { EmptyView() }` in
+         WhisperApp.swift) at startup, which shows up as an empty 900x450
+         "Whisper Settings" window. The real settings UI is a separate
+         AppKit window created on demand by WindowPresenter.showSettings(). -->
+    <key>LSUIElement</key>
+    <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Whisper records your voice while you hold the hotkey so it can transcribe what you say.</string>
     <key>NSAudioCaptureUsageDescription</key>
