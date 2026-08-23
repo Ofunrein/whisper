@@ -153,24 +153,30 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    /// Downloads, installs, and relaunches. On success the app quits itself
-    /// (see Updater.relaunch), so there's no "success" UI path to design here
-    /// -- only the failure path needs a visible alert.
+    /// Downloads, installs, and relaunches, showing a progress window so the
+    /// user can see the download filling and the install happening. On success
+    /// the app quits itself (see Updater.relaunch), so there's no "success" UI
+    /// path to design here -- only the failure path needs a visible alert.
     private func installUpdate(_ release: UpdateChecker.Release) {
-        Task {
+        Task { @MainActor in
+            let model = UpdateProgressModel(versionLabel: release.tagName)
+            WindowPresenter.showUpdateProgress(model)
             do {
-                try await Updater.downloadAndInstall(release)
+                try await Updater.downloadAndInstall(release) { phase in
+                    // Called from URLSession's delegate queue; UI state has to
+                    // be mutated on the main actor.
+                    Task { @MainActor in model.phase = phase }
+                }
             } catch {
-                await MainActor.run {
-                    let alert = NSAlert()
-                    alert.alertStyle = .warning
-                    alert.messageText = "Update Failed"
-                    alert.informativeText = error.localizedDescription
-                    alert.addButton(withTitle: "View Release Page")
-                    alert.addButton(withTitle: "OK")
-                    if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: release.htmlURL) {
-                        NSWorkspace.shared.open(url)
-                    }
+                WindowPresenter.closeUpdateProgress()
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Update Failed"
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: "View Release Page")
+                alert.addButton(withTitle: "OK")
+                if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: release.htmlURL) {
+                    NSWorkspace.shared.open(url)
                 }
             }
         }
@@ -185,6 +191,35 @@ enum WindowPresenter {
 
     private static var historyWindow: NSWindow?
     private static var historyController: NSHostingController<HistoryView>?
+
+    private static var updateWindow: NSWindow?
+    private static var updateController: NSHostingController<UpdateProgressView>?
+
+    /// Shows the update progress window. Floats above other apps because
+    /// Whisper is a menu-bar (accessory) app with no Dock icon, so a normal
+    /// window could otherwise be buried behind whatever the user is working in
+    /// and the update would still look like it did nothing.
+    static func showUpdateProgress(_ model: UpdateProgressModel) {
+        if updateWindow == nil {
+            let controller = NSHostingController(rootView: UpdateProgressView(model: model))
+            let window = NSWindow(contentViewController: controller)
+            window.title = "Updating Whisper"
+            window.styleMask = [.titled]
+            window.isReleasedWhenClosed = false
+            window.level = .floating
+            window.center()
+            updateController = controller
+            updateWindow = window
+        }
+        updateWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    static func closeUpdateProgress() {
+        updateWindow?.orderOut(nil)
+        updateWindow = nil
+        updateController = nil
+    }
 
     static func showSettings() {
         if settingsWindow == nil {
