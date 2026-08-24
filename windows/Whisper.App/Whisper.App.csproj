@@ -56,4 +56,24 @@
     <ProjectReference Include="..\Whisper.Core\Whisper.Core.csproj" />
   </ItemGroup>
 
+  <!--
+    MRT generates the app's resource index as $(AssemblyName).pri, but an
+    unpackaged app (WindowsPackageType=None) has no package identity to look one
+    up by, so MRTCore loads resources.pri from the executable's own directory.
+    Without it every ms-appx:/// lookup fails, which surfaces as a
+    XamlParseException out of InitializeComponent() the first time a XAML file
+    other than App.xaml is loaded: the app starts, then dies opening its first
+    window. Neither `dotnet build` nor `dotnet publish` copies the file under
+    that name on its own, so do it here for both.
+  -->
+  <Target Name="CopyPriAsResourcesPri" AfterTargets="Build"
+          Condition="'$(WindowsPackageType)' == 'None' And Exists('$(TargetDir)$(AssemblyName).pri')">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(TargetDir)resources.pri" />
+  </Target>
+
+  <Target Name="PublishPriAsResourcesPri" AfterTargets="Publish"
+          Condition="'$(WindowsPackageType)' == 'None' And Exists('$(TargetDir)$(AssemblyName).pri')">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)resources.pri" />
+  </Target>
+
 </Project>

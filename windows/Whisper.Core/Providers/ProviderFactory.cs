@@ -1,4 +1,4 @@
-using Whisper.Core.Models;
+﻿using Whisper.Core.Models;
 
 namespace Whisper.Core.Providers;
 
@@ -16,7 +16,7 @@ public static class ProviderFactory
     /// callers are expected to check SttProviderKind/CleanupProviderKind's
     /// "needs a key" expectations before calling if they want to
     /// short-circuit with a friendlier error than an HTTP 401.
-    public static ISttProvider CreateSttProvider(SttProviderKind kind, HttpClient http, string? apiKey)
+    public static ISttProvider CreateSttProvider(SttProviderKind kind, HttpClient http, string? apiKey, AppSettings settings)
     {
         var key = apiKey ?? "";
         return kind switch
@@ -25,6 +25,8 @@ public static class ProviderFactory
             SttProviderKind.OpenAI => new OpenAISttProvider(http, key),
             SttProviderKind.Deepgram => new DeepgramSttProvider(http, key),
             SttProviderKind.ElevenLabs => new ElevenLabsSttProvider(http, key),
+            SttProviderKind.LocalWhisper => new LocalWhisperSttProvider(
+                settings.LocalWhisperExePath, settings.LocalWhisperModelPath, settings.LocalWhisperLanguage),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported STT provider"),
         };
     }
@@ -69,8 +71,9 @@ public static class ProviderFactory
 
     /// Credential-store account name each provider's key is stored under
     /// (see Whisper.App.Security.CredentialStore, "Whisper:{account}").
-    public static string KeyAccountFor(SttProviderKind kind) => kind switch
+    public static string? KeyAccountFor(SttProviderKind kind) => kind switch
     {
+        SttProviderKind.LocalWhisper => null, // on-device, no key
         SttProviderKind.Groq => "groq",
         SttProviderKind.OpenAI => "openai",
         SttProviderKind.Deepgram => "deepgram",

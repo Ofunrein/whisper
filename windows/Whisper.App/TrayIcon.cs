@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace Whisper.App;
 
@@ -45,7 +45,7 @@ public sealed class TrayIcon : IDisposable
 
     private delegate nint WndProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
-    [DllImport("shell32.dll")]
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
 
     [DllImport("user32.dll")]
@@ -66,22 +66,22 @@ public sealed class TrayIcon : IDisposable
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int x; public int y; }
 
-    [DllImport("user32.dll", SetLastError = true)]
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern ushort RegisterClassEx(ref WNDCLASSEX lpwcx);
 
-    [DllImport("user32.dll", SetLastError = true)]
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern nint CreateWindowEx(
         uint dwExStyle, string lpClassName, string lpWindowName, uint dwStyle,
         int x, int y, int nWidth, int nHeight,
         nint hWndParent, nint hMenu, nint hInstance, nint lpParam);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern nint DefWindowProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
     [DllImport("user32.dll")]
     private static extern nint LoadIcon(nint hInstance, nint lpIconName);
 
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern nint GetModuleHandle(string? lpModuleName);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
@@ -136,9 +136,19 @@ public sealed class TrayIcon : IDisposable
             hInstance = hInstance,
             lpszClassName = "WhisperTrayWindow",
         };
-        RegisterClassEx(ref wc);
+        // Every P/Invoke here that touches a string has to be pinned to CharSet.Unicode.
+        // Without it DllImport defaults to CharSet.Ansi and binds RegisterClassExA, while
+        // WNDCLASSEX is declared CharSet.Unicode and so marshals lpszClassName as UTF-16 --
+        // which RegisterClassExA reads as the single byte "W". CreateWindowExA then asks
+        // for a class named "WhisperTrayWindow" that was never registered, returns 0, and
+        // Shell_NotifyIcon gets hWnd = 0: no icon, no menu, no way to reach Settings or
+        // Quit. The app looks like it never started at all.
+        if (RegisterClassEx(ref wc) == 0)
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "RegisterClassEx failed for the tray window");
 
         _hwnd = CreateWindowEx(0, "WhisperTrayWindow", "Whisper", 0, 0, 0, 0, 0, 0, 0, hInstance, 0);
+        if (_hwnd == 0)
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "CreateWindowEx failed for the tray window");
 
         _icon = new NOTIFYICONDATA
         {
@@ -150,7 +160,8 @@ public sealed class TrayIcon : IDisposable
             hIcon = LoadAppIcon(),
             szTip = "Whisper",
         };
-        Shell_NotifyIcon(NIM_ADD, ref _icon);
+        if (!Shell_NotifyIcon(NIM_ADD, ref _icon))
+            throw new InvalidOperationException("Shell_NotifyIcon(NIM_ADD) failed; the tray icon would be invisible.");
     }
 
     private nint WindowProc(nint hWnd, uint msg, nint wParam, nint lParam)

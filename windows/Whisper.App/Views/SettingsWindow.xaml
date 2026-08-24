@@ -54,8 +54,17 @@
                         <ComboBoxItem Content="OpenAI (whisper-1)" Tag="OpenAI" />
                         <ComboBoxItem Content="Deepgram (Nova-3)" Tag="Deepgram" />
                         <ComboBoxItem Content="ElevenLabs (Scribe v2)" Tag="ElevenLabs" />
+                        <ComboBoxItem Content="Local Whisper (whisper.cpp, on-device)" Tag="LocalWhisper" />
                     </ComboBox>
-                    <TextBlock Text="Local on-device transcription (whisper.cpp, matching the mac app's Local Whisper option) is not available on Windows yet. All providers above are cloud APIs and need the matching key on the API Keys tab."
+                    <TextBlock Text="Local Whisper runs on this machine and needs no API key -- nothing is sent anywhere. Every other provider is a cloud API and needs the matching key on the API Keys tab."
+                               Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="LocalWhisperExeBox" PlaceholderText="whisper-cli.exe" Width="260" TextChanged="OnLocalWhisperExeChanged" />
+                        <TextBox x:Name="LocalWhisperLanguageBox" PlaceholderText="en" Width="60" TextChanged="OnLocalWhisperLanguageChanged" />
+                    </StackPanel>
+                    <TextBox x:Name="LocalWhisperModelBox" PlaceholderText="ggml-base.en.bin" Width="328" TextChanged="OnLocalWhisperModelChanged" />
+                    <TextBlock Text="Path to whisper-cli.exe, the GGML model file, and the spoken language. Applies only when the provider above is Local Whisper. Leave blank to use the default install location."
                                Opacity="0.6" TextWrapping="Wrap" FontSize="12" />
 
                     <ToggleSwitch x:Name="CleanupToggle" Header="Clean up transcript" Toggled="OnCleanupToggled" Margin="0,12,0,0" />
