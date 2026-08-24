@@ -21,7 +21,15 @@ public partial class App : Application
     private readonly AudioRecorder _recorder = new();
     private readonly HttpClient _http = new();
     private readonly TrayIcon _tray = new();
-    private readonly RecordingIndicatorWindow _indicator = new();
+    // Constructed in OnLaunched, not as a field initializer: field initializers
+    // run before the constructor body, i.e. before InitializeComponent() has
+    // merged XamlControlsResources into Application.Resources. Building a Window
+    // -- which resolves theme resources in its own InitializeComponent() -- that
+    // early fails inside Microsoft.UI.Xaml.dll as a native fail-fast
+    // (0xc000027b), before any managed handler can report it. That is the real
+    // cause of issue #1, not the OS build: a minimal WinUI3 unpackaged app on the
+    // same WindowsAppSDK 1.8 and the same Windows 11 21H2 box starts fine.
+    private RecordingIndicatorWindow? _indicator;
     private SettingsWindow? _settingsWindow;
 
     /// Tracks recording state for Toggle-style bindings, where HotkeyManager
@@ -33,6 +41,7 @@ public partial class App : Application
 
     public App()
     {
+        Program.Trace("App ctor entered (fields already initialized)");
         // WinUI installs no default handler for exceptions thrown before or
         // during OnLaunched -- an unhandled one kills the process instantly
         // with no dialog, which is exactly the "just didn't open" symptom
@@ -51,7 +60,9 @@ public partial class App : Application
             e.Handled = true;
         };
 
+        Program.Trace("before App.InitializeComponent");
         InitializeComponent();
+        Program.Trace("after App.InitializeComponent");
     }
 
     private static void ReportFatalStartupException(Exception? ex, string source)
@@ -66,6 +77,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        Program.Trace("OnLaunched entered");
         try
         {
             _hotkeys.Binding = _settings.Settings.Bindings.Count > 0
@@ -75,15 +87,22 @@ public partial class App : Application
             _hotkeys.RecordingStopped += OnRecordingStopped;
             _hotkeys.RecordingToggled += OnRecordingToggled;
             _hotkeys.Start();
+            Program.Trace("hotkeys started");
 
+            Program.Trace("before new RecordingIndicatorWindow");
+            _indicator = new RecordingIndicatorWindow();
+            Program.Trace("after new RecordingIndicatorWindow");
             _indicator.StopRequested += OnIndicatorStopRequested;
 
             _tray.SettingsRequested += ShowSettings;
             _tray.QuitRequested += () => Environment.Exit(0);
             _tray.CheckForUpdatesRequested += () => _ = CheckForUpdatesAsync(silent: false);
             _tray.Create();
+            Program.Trace("tray created");
 
+            Program.Trace("before CheckForUpdatesAsync");
             _ = CheckForUpdatesAsync(silent: true);
+            Program.Trace("OnLaunched complete");
         }
         catch (Exception ex)
         {
@@ -182,7 +201,7 @@ public partial class App : Application
         _isRecording = true;
         _recorder.RecordSystemAudio = _settings.Settings.RecordSystemAudio;
         _recorder.Start(_settings.Settings.PreferredInputDeviceId);
-        _indicator.ShowIndicator();
+        _indicator?.ShowIndicator();
     }
 
     /// Toggle-style bindings only fire on the down-transition -- the first
@@ -208,7 +227,7 @@ public partial class App : Application
     private async void OnRecordingStopped()
     {
         _isRecording = false;
-        _indicator.HideIndicator();
+        _indicator?.HideIndicator();
 
         var wav = _recorder.Stop();
         if (wav == null) return; // silence gate -- nothing worth transcribing
