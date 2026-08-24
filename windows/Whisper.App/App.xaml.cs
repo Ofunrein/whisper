@@ -236,10 +236,13 @@ public partial class App : Application
             await SaveRecordingAsync(wav);
 
         var sttKind = _settings.Settings.SttProvider;
-        var sttKey = CredentialStore.GetApiKey(ProviderFactory.KeyAccountFor(sttKind));
-        if (string.IsNullOrEmpty(sttKey)) return; // no key configured -- surface via tray balloon in a follow-up pass
+        // A null account means the provider runs on-device (LocalWhisper) and
+        // has no key to look up, so the missing-key bail-out doesn't apply.
+        var sttAccount = ProviderFactory.KeyAccountFor(sttKind);
+        var sttKey = sttAccount is null ? null : CredentialStore.GetApiKey(sttAccount);
+        if (sttAccount is not null && string.IsNullOrEmpty(sttKey)) return; // no key configured -- surface via tray balloon in a follow-up pass
 
-        var stt = ProviderFactory.CreateSttProvider(sttKind, _http, sttKey);
+        var stt = ProviderFactory.CreateSttProvider(sttKind, _http, sttKey, _settings.Settings);
         var text = await stt.TranscribeAsync(wav, CancellationToken.None);
 
         if (_settings.Settings.CleanupEnabled)
