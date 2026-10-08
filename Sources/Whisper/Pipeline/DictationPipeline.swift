@@ -163,15 +163,6 @@ final class DictationPipeline: ObservableObject {
         let appName = await MainActor.run { () -> String? in
             let target = pasteTargetPID.flatMap { NSRunningApplication(processIdentifier: $0) }
             let name = target?.localizedName ?? self.output.frontmostAppName()
-            if let target, target.bundleIdentifier != Bundle.main.bundleIdentifier {
-                if let url = target.bundleURL {
-                    let config = NSWorkspace.OpenConfiguration()
-                    config.activates = true
-                    NSWorkspace.shared.openApplication(at: url, configuration: config)
-                } else {
-                    target.activate()
-                }
-            }
             self.output.deliver(text: finalText, mode: settings.outputMode, keepOnClipboard: settings.keepOnClipboardAfterPaste, targetPID: pasteTargetPID)
             return name
         }

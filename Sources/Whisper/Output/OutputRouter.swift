@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import CoreGraphics
+import ApplicationServices
 
 /// Delivers transcribed text: paste at cursor, copy only, or paste and keep.
 final class OutputRouter {
@@ -110,9 +111,41 @@ final class OutputRouter {
         }
 
         let front = NSWorkspace.shared.frontmostApplication
+        if let pid = targetPID ?? front?.processIdentifier, pasteViaMenu(targetPID: pid) {
+            logPaste("native Edit-Paste target=\(pid)")
+            return
+        }
         logPaste("posting command-v front=\(front?.localizedName ?? "nil") frontPID=\(front?.processIdentifier.description ?? "nil") target=\(targetPID.map(String.init) ?? "nil")")
         postExplicitCommandV()
         NSLog("Whisper: auto-paste sent explicit Command-V chord")
+    }
+
+    // Electron terminals can ignore injected Command-V even when normal text fields accept it.
+    // Invoke the target's native Paste action without typing into its accessibility text value.
+    private func pasteViaMenu(targetPID: pid_t) -> Bool {
+        func children(_ element: AXUIElement) -> [AXUIElement] {
+            var value: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value) == .success else { return [] }
+            return value as? [AXUIElement] ?? []
+        }
+        let app = AXUIElementCreateApplication(targetPID)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &value) == .success,
+              let value else { return false }
+        let bar = value as! AXUIElement
+        for barItem in children(bar) {
+            for menu in children(barItem) {
+                for item in children(menu) {
+                    var title: CFTypeRef?
+                    var enabled: CFTypeRef?
+                    AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+                    AXUIElementCopyAttributeValue(item, kAXEnabledAttribute as CFString, &enabled)
+                    guard title as? String == "Paste", (enabled as? NSNumber)?.boolValue == true else { continue }
+                    return AXUIElementPerformAction(item, kAXPressAction as CFString) == .success
+                }
+            }
+        }
+        return false
     }
 
     private func activateTarget(_ targetPID: pid_t?) {
@@ -120,6 +153,8 @@ final class OutputRouter {
               targetPID > 0,
               let target = NSRunningApplication(processIdentifier: targetPID),
               target.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        // Re-activating an already focused Electron app can blur its terminal input.
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier != targetPID else { return }
         target.activate()
         logPaste("activate target=\(target.localizedName ?? "nil") pid=\(targetPID)")
     }
