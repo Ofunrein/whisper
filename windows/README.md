@@ -65,14 +65,30 @@ anyway.
 - **STT**: Groq, OpenAI, Deepgram, ElevenLabs are all implemented
   (`Providers/GroqSttProvider.cs`, `OpenAISttProvider.cs`,
   `DeepgramSttProvider.cs`, `ElevenLabsSttProvider.cs`), matching the mac
-  app's cloud providers. `LocalWhisper` (on-device whisper.cpp) is
-  deliberately **not** ported -- it needs a bundled native inference
-  engine and model-download/management story (see
-  `Sources/Whisper/Providers/STT/LocalWhisperTranscriber.swift` +
-  `LocalWhisperDownloader.swift` on the mac side), which is a materially
-  bigger lift than an HTTP client class and is out of scope here. It's a
-  reasonable follow-up if/when Windows on-device inference (e.g. via
-  whisper.cpp's own Windows build, or ONNX Runtime) becomes a priority.
+  app's cloud providers. `LocalWhisper` (`LocalWhisperSttProvider.cs`) runs
+  on-device and needs no API key: it shells out to whisper.cpp's
+  `whisper-cli` against a local GGML model, so no audio leaves the machine
+  and it works offline.
+
+  Unlike the mac app, the binary and model are **not** bundled or
+  auto-downloaded (no equivalent of `LocalWhisperDownloader.swift`) --
+  the models run to hundreds of MB and which one to use is a
+  speed/accuracy tradeoff only the user can make. Point Settings at an
+  existing install, or set one up:
+
+  ```
+  # any whisper.cpp Windows release; the CPU build is ~8MB
+  curl -L -o whisper.zip https://github.com/ggml-org/whisper.cpp/releases/download/b4938/whisper-bin-x64.zip
+  # unzip into %LOCALAPPDATA%\Whisper\whisper.cpp, then fetch a model
+  curl -L -o "%LOCALAPPDATA%\Whisper\whisper.cpp\ggml-base.en.bin" \
+    https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+  ```
+
+  Those paths are the defaults in `AppSettings`, so an install laid out
+  that way needs no configuration beyond picking the provider. Verify it
+  with `dotnet run --project tools/LocalWhisperCheck -- some-16khz-mono.wav`.
+  For a fully offline setup, also set Cleanup Provider to `None` (or
+  `Ollama`, which is likewise local).
 - **Cleanup**: Groq, Cerebras, OpenAI (via the shared
   `Providers/OpenAiCompatCleanupProvider.cs`, since all three share the
   OpenAI chat-completions request/response shape -- mirrors

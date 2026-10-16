@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Whisper.App.Hotkeys;
 using Whisper.Core;
@@ -39,6 +39,7 @@ public sealed partial class SettingsWindow : Window
             SttProviderKind.OpenAI => 1,
             SttProviderKind.Deepgram => 2,
             SttProviderKind.ElevenLabs => 3,
+            SttProviderKind.LocalWhisper => 4,
             _ => 0,
         };
 
@@ -56,6 +57,9 @@ public sealed partial class SettingsWindow : Window
         };
         OllamaBaseUrlBox.Text = s.OllamaBaseUrl;
         OllamaModelBox.Text = s.OllamaModel;
+        LocalWhisperExeBox.Text = s.LocalWhisperExePath;
+        LocalWhisperModelBox.Text = s.LocalWhisperModelPath;
+        LocalWhisperLanguageBox.Text = s.LocalWhisperLanguage;
 
         KeepClipboardToggle.IsOn = s.KeepOnClipboardAfterPaste;
         SaveAudioToggle.IsOn = s.SaveAudio;
@@ -138,6 +142,7 @@ public sealed partial class SettingsWindow : Window
             1 => SttProviderKind.OpenAI,
             2 => SttProviderKind.Deepgram,
             3 => SttProviderKind.ElevenLabs,
+            4 => SttProviderKind.LocalWhisper,
             _ => SttProviderKind.Groq,
         };
         _store.Save();
@@ -182,6 +187,33 @@ public sealed partial class SettingsWindow : Window
         _store.Settings.OllamaModel = string.IsNullOrWhiteSpace(OllamaModelBox.Text)
             ? AppSettings.DefaultOllamaModel
             : OllamaModelBox.Text.Trim();
+        _store.Save();
+    }
+
+    private void OnLocalWhisperExeChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_loaded) return;
+        _store.Settings.LocalWhisperExePath = string.IsNullOrWhiteSpace(LocalWhisperExeBox.Text)
+            ? AppSettings.DefaultLocalWhisperExePath
+            : LocalWhisperExeBox.Text.Trim();
+        _store.Save();
+    }
+
+    private void OnLocalWhisperModelChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_loaded) return;
+        _store.Settings.LocalWhisperModelPath = string.IsNullOrWhiteSpace(LocalWhisperModelBox.Text)
+            ? AppSettings.DefaultLocalWhisperModelPath
+            : LocalWhisperModelBox.Text.Trim();
+        _store.Save();
+    }
+
+    private void OnLocalWhisperLanguageChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_loaded) return;
+        _store.Settings.LocalWhisperLanguage = string.IsNullOrWhiteSpace(LocalWhisperLanguageBox.Text)
+            ? "en"
+            : LocalWhisperLanguageBox.Text.Trim();
         _store.Save();
     }
 

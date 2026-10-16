@@ -12,25 +12,46 @@ public static class Program
         WriteStartupDiagnostics();
 
         global::WinRT.ComWrappersSupport.InitializeComWrappers();
+        Trace("before Application.Start");
         global::Microsoft.UI.Xaml.Application.Start((p) =>
         {
+            Trace("inside Start callback");
             var context = new global::Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(
                 global::Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             global::System.Threading.SynchronizationContext.SetSynchronizationContext(context);
+            Trace("before new App()");
             new App();
+            Trace("after new App()");
         });
+        Trace("Start returned");
     }
 
     /// Best-effort environment log written immediately before the native WinUI3
-    /// XAML engine starts inside Application.Start(). See issue #1: on at least
-    /// one real Windows 11 21H2 (build 22000, an end-of-life build with no
-    /// updates since Oct 2023) machine, that call fails with a native fail-fast
-    /// (0xc000027b) before any managed exception handler -- including the ones
-    /// already registered in App()'s constructor -- ever gets a chance to run.
-    /// That kind of failure is architecturally uncatchable from managed code, so
-    /// this can only leave a breadcrumb beforehand: if it happens again, whoever
-    /// investigates has the OS build/UBR and resolved app version to go on
-    /// instead of a silent, contextless crash.
+    /// XAML engine starts inside Application.Start(). Issue #1 reported a native
+    /// fail-fast (0xc000027b) there, uncatchable from managed code, and guessed
+    /// the end-of-life Windows 11 21H2 (build 22000) host was to blame.
+    ///
+    /// It wasn't. On that same box, a minimal unpackaged WinUI3 app on the same
+    /// WindowsAppSDK 1.8 starts cleanly; the crash was App.xaml.cs constructing
+    /// RecordingIndicatorWindow in a field initializer, which runs before
+    /// InitializeComponent() has merged XamlControlsResources (see the comment on
+    /// that field). The OS/UBR breadcrumb stays because it cost real time to rule
+    /// out, and the Trace() calls below stay because they are what localised the
+    /// failing step -- a fail-fast leaves no stack, so the last line written is
+    /// the only evidence available.
+    internal static void Trace(string msg)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Whisper");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "startup.log"),
+                $"{System.DateTime.Now:HH:mm:ss.fff} TRACE {msg}{System.Environment.NewLine}");
+        }
+        catch { }
+    }
+
     private static void WriteStartupDiagnostics()
     {
         try

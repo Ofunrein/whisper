@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Exercises LocalWhisperSttProvider against a real whisper.cpp install, which
+    nothing else can: every other STT provider is an HTTP call that CI can reason
+    about, while this one depends on an external binary and a multi-hundred-MB
+    model that deliberately aren't bundled.
+
+    Skips loudly (exit 0) when the binary or model is missing, so it stays
+    harmless on a runner that has neither, and fails hard when they exist but
+    transcription doesn't work.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Whisper.Tools.LocalWhisperCheck</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Whisper.Core\Whisper.Core.csproj" />
+  </ItemGroup>
+
+</Project>

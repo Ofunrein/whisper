@@ -1,10 +1,12 @@
 namespace Whisper.Core.Models;
 
-/// LocalWhisper is intentionally NOT a case here -- on-device whisper.cpp
-/// bundling (model download/management, native inference) is a much bigger
-/// separate lift than the cloud providers below and is deliberately out of
-/// scope for this pass. See windows/README.md.
-public enum SttProviderKind { Groq, OpenAI, Deepgram, ElevenLabs }
+/// LocalWhisper runs whisper.cpp's whisper-cli against a local GGML model
+/// (Providers/LocalWhisperSttProvider). It needs no API key and sends no
+/// audio off the machine; the binary and model are pointed at by
+/// LocalWhisperExePath/LocalWhisperModelPath rather than bundled, since the
+/// models are hundreds of MB and which one to use is a speed/accuracy
+/// tradeoff only the user can make.
+public enum SttProviderKind { Groq, OpenAI, Deepgram, ElevenLabs, LocalWhisper }
 
 public enum CleanupProviderKind { None, Groq, Cerebras, OpenAI, Gemini, Ollama, Anthropic }
 public enum OutputMode { PasteAtCursor, CopyOnly }
@@ -27,6 +29,13 @@ public sealed class AppSettings
     public const string DefaultOllamaBaseUrl = "http://localhost:11434";
     public const string DefaultAnthropicModel = "claude-haiku-4-5-20251001";
 
+    private static string LocalWhisperRoot => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Whisper", "whisper.cpp");
+
+    public static string DefaultLocalWhisperExePath => Path.Combine(LocalWhisperRoot, "Release", "whisper-cli.exe");
+    public static string DefaultLocalWhisperModelPath => Path.Combine(LocalWhisperRoot, "ggml-base.en.bin");
+
     public SttProviderKind SttProvider { get; set; } = SttProviderKind.Groq;
     public CleanupProviderKind CleanupProvider { get; set; } = CleanupProviderKind.Groq;
     public bool CleanupEnabled { get; set; } = true;
@@ -40,6 +49,13 @@ public sealed class AppSettings
     public string OllamaModel { get; set; } = DefaultOllamaModel;
     public string OllamaBaseUrl { get; set; } = DefaultOllamaBaseUrl;
     public string AnthropicModel { get; set; } = DefaultAnthropicModel;
+
+    /// Where the whisper.cpp release was unpacked and which GGML model to run.
+    /// Defaults match the layout the README's setup step produces; both are
+    /// editable in Settings because neither ships with the app.
+    public string LocalWhisperExePath { get; set; } = DefaultLocalWhisperExePath;
+    public string LocalWhisperModelPath { get; set; } = DefaultLocalWhisperModelPath;
+    public string LocalWhisperLanguage { get; set; } = "en";
 
     public OutputMode OutputMode { get; set; } = OutputMode.PasteAtCursor;
     public bool KeepOnClipboardAfterPaste { get; set; } = true;
