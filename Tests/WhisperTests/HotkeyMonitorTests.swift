@@ -29,6 +29,17 @@ final class HotkeyMonitorTests: XCTestCase {
     func testSuccessiveHoldsStartWithoutDoubleClickCooldown() {
         for click in 1...3 {
             let timestamp = Double(click) * (holdDuration + 0.06)
+            send(.rightMouseDown, at: timestamp, clickCount: 1)
+            pump(holdDuration + 0.05)
+            send(.rightMouseUp, at: timestamp + holdDuration + 0.05, clickCount: 1)
+            pump(0.01)
+        }
+        XCTAssertEqual(edges, ["start", "stop", "start", "stop", "start", "stop"])
+    }
+
+    func testHeldSecondAndThirdClicksStart() {
+        for click in 1...3 {
+            let timestamp = Double(click) * (holdDuration + 0.06)
             send(.rightMouseDown, at: timestamp, clickCount: click)
             pump(holdDuration + 0.05)
             send(.rightMouseUp, at: timestamp + holdDuration + 0.05, clickCount: click)
