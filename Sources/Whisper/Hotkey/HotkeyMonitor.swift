@@ -101,7 +101,7 @@ final class HotkeyMonitor {
 
     // MARK: - Event handling
 
-    private func handle(_ event: NSEvent) {
+    func handle(_ event: NSEvent) {
         for (index, binding) in bindings.enumerated() where binding.kind == .rightClick {
             handleRightClick(index: index, binding: binding, event: event)
         }
