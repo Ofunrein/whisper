@@ -24,8 +24,6 @@ final class HotkeyMonitor {
 
     private var rightClickHoldTimer: DispatchWorkItem?
     private var rightClickHeld = false // true once the hold threshold has fired for the current down-sequence
-    private var suppressRightClickUntilUp = false // double-click/rapid-click guard
-    private var lastRightClickUpTime: TimeInterval?
 
     private let modifierMask: NSEvent.ModifierFlags = [.command, .shift, .control, .option]
 
@@ -41,8 +39,6 @@ final class HotkeyMonitor {
         rightClickHoldTimer?.cancel()
         rightClickHoldTimer = nil
         rightClickHeld = false
-        suppressRightClickUntilUp = false
-        lastRightClickUpTime = nil
         // A settings edit (e.g. deleting the binding that's mid-toggle) must
         // never leave `recording` stranded true with no matching stop fired --
         // that desync is what made toggle mode look like it "loops back on".
@@ -101,7 +97,7 @@ final class HotkeyMonitor {
 
     // MARK: - Event handling
 
-    private func handle(_ event: NSEvent) {
+    func handle(_ event: NSEvent) {
         for (index, binding) in bindings.enumerated() where binding.kind == .rightClick {
             handleRightClick(index: index, binding: binding, event: event)
         }
@@ -121,32 +117,17 @@ final class HotkeyMonitor {
  rightClickHoldTimer = nil
  rightClickHeld = false
 
- let now = event.timestamp
- let isRapidSecondClick = lastRightClickUpTime.map { now - $0 <= NSEvent.doubleClickInterval } ?? false
- guard event.clickCount == 1, !isRapidSecondClick else {
- suppressRightClickUntilUp = true
- return
- }
-
- suppressRightClickUntilUp = false
  let thresholdMs = SettingsStore.shared.settings.rightClickHoldThresholdMs
  let work = DispatchWorkItem { [weak self] in
- guard let self, !self.suppressRightClickUntilUp else { return }
+ guard let self else { return }
  self.rightClickHeld = true
  self.dispatch(index: index, style: .hold, edge: .press)
  }
  rightClickHoldTimer = work
  DispatchQueue.main.asyncAfter(deadline: .now() + thresholdMs / 1000, execute: work)
  case .rightMouseUp:
- lastRightClickUpTime = event.timestamp
  rightClickHoldTimer?.cancel()
  rightClickHoldTimer = nil
-
- if suppressRightClickUntilUp {
- suppressRightClickUntilUp = false
- rightClickHeld = false
- return
- }
 
  guard rightClickHeld else { return }
  rightClickHeld = false
