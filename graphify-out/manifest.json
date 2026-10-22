@@ -1,0 +1,592 @@
+{
+  "Package.swift": {
+    "mtime": 1783281124.439335,
+    "ast_hash": "c53375aa17dbce25df6205069dbf65ca",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Audio/AudioDevices.swift": {
+    "mtime": 1787500306.5105634,
+    "ast_hash": "38b9f0b665bbfbbda057d42125170677",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Audio/AudioRecorder.swift": {
+    "mtime": 1787500306.5108933,
+    "ast_hash": "49dcc63d91724db7797d3129be4be76d",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Audio/PlaybackDucker.swift": {
+    "mtime": 1783303765.160271,
+    "ast_hash": "9377abbe0bc04e95b7821ee13d92e707",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Audio/SoundPlayer.swift": {
+    "mtime": 1783306309.621733,
+    "ast_hash": "a123fe7b0267b9eedc1ed0d39cfff568",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Audio/SystemAudioCapture.swift": {
+    "mtime": 1783544814.2413237,
+    "ast_hash": "1c3de372b3a2cd2c4339440c78e96ab9",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Hotkey/HotkeyMonitor.swift": {
+    "mtime": 1792194132.2289555,
+    "ast_hash": "7657ffaa03b592f8de2c8059621547f4",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Hotkey/ModifierKeys.swift": {
+    "mtime": 1783283684.0941117,
+    "ast_hash": "e190d1ff9369a5f98a4dca8dcacd091e",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Output/OutputRouter.swift": {
+    "mtime": 1791434102.3873398,
+    "ast_hash": "77b03895a7c58cb0912536bf58902ccd",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Permissions/Permissions.swift": {
+    "mtime": 1783281668.063391,
+    "ast_hash": "4bb2eea99106c4cf154fd373e2fb4257",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Pipeline/DictationPipeline.swift": {
+    "mtime": 1791433241.930011,
+    "ast_hash": "6ca92c623d3d087befab5837b2cf8aa8",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Pipeline/LatencyMetrics.swift": {
+    "mtime": 1784019508.9126012,
+    "ast_hash": "442a1291f61d360722a51a911fb8bd88",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Pipeline/RefusalGuard.swift": {
+    "mtime": 1783471620.7860432,
+    "ast_hash": "61b73f03ae93abb7b031e3f09ca884c3",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Pipeline/VocabularyEngine.swift": {
+    "mtime": 1784698824.5999472,
+    "ast_hash": "13ce1d32ead2523ba90410a487717b03",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/Cleanup/AnthropicCleanup.swift": {
+    "mtime": 1783556311.9181395,
+    "ast_hash": "6c3a361ee590001160291505adc28685",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/Cleanup/GeminiCleanup.swift": {
+    "mtime": 1783281678.014611,
+    "ast_hash": "7f76bf5c5ae3445f44fcfeff6f73c9a7",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/Cleanup/OllamaCleanup.swift": {
+    "mtime": 1783281692.3667037,
+    "ast_hash": "e7ee39a887e23a299f0ebbd0b2921796",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/Cleanup/OpenAICompatCleanup.swift": {
+    "mtime": 1784699132.9490173,
+    "ast_hash": "33e79a4677f6cd1f57333d1b6ac62c08",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/ModelCatalog.swift": {
+    "mtime": 1783556364.9343364,
+    "ast_hash": "b9f075602f338b2aed9b5c9404fc86fd",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/MultipartFormBuilder.swift": {
+    "mtime": 1783281529.8216438,
+    "ast_hash": "f3e2e2698121d5d33ea72506c3d0c6da",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/ProviderFactory.swift": {
+    "mtime": 1784698824.6012,
+    "ast_hash": "e09b6cf682012c95c7cad6222140064f",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/ProviderProtocols.swift": {
+    "mtime": 1783327002.7237775,
+    "ast_hash": "357957f44516d51bd8024d575e40ccaa",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/ProviderWarmup.swift": {
+    "mtime": 1784019508.90957,
+    "ast_hash": "40622ed1af2b6f3edfb8f650f5cfea9b",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/DeepgramStreamingSession.swift": {
+    "mtime": 1784698824.600936,
+    "ast_hash": "8c3a63160ce24c92da2fd9f097ef7ffe",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/DeepgramTranscriber.swift": {
+    "mtime": 1784698824.6004815,
+    "ast_hash": "ca039ba655bb48bc4a11ac03ff668370",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/ElevenLabsTranscriber.swift": {
+    "mtime": 1783985081.4598546,
+    "ast_hash": "b53c96c14a8d96c8b248b87525200480",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/GroqTranscriber.swift": {
+    "mtime": 1783985081.477441,
+    "ast_hash": "687f820ce908a7f93a9cfbb80c39718a",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/LocalWhisperDownloader.swift": {
+    "mtime": 1783381975.3422174,
+    "ast_hash": "77ae1f5b97280202a57b71826d3fd62b",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/LocalWhisperTranscriber.swift": {
+    "mtime": 1783381928.1234634,
+    "ast_hash": "a4243a97f7c2144bb858b30da0ebdfba",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Providers/STT/OpenAITranscriber.swift": {
+    "mtime": 1783985081.4619086,
+    "ast_hash": "e952060b791ba391a607e93b7a85882f",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Store/History.swift": {
+    "mtime": 1783299185.3089535,
+    "ast_hash": "aa84f17b8d831579c54e2d1a67e21754",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Store/Keychain.swift": {
+    "mtime": 1783556295.328739,
+    "ast_hash": "efd0c891da06ada83bd472afb93e8244",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Store/Settings.swift": {
+    "mtime": 1785518298.954946,
+    "ast_hash": "df96e4a5bba79a81ed775060a596298c",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/UI/HistoryView.swift": {
+    "mtime": 1783281652.3219953,
+    "ast_hash": "4734b4be64888e7e911f499178a5ec4c",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/UI/MenuBar.swift": {
+    "mtime": 1787500306.5112436,
+    "ast_hash": "4f9faf540de42f63809f111cbf0a96b9",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/UI/PillIndicator.swift": {
+    "mtime": 1783556468.8350282,
+    "ast_hash": "efd1dd390fd9fa6e2e4a8a9a4344333c",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/UI/SettingsView.swift": {
+    "mtime": 1785518314.6883585,
+    "ast_hash": "de8ed4429aea1f962388e9e61ecfbfae",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/UI/UpdateProgressView.swift": {
+    "mtime": 1787500306.5116796,
+    "ast_hash": "270c883304780188f89dd62b71be1ecf",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Update/UpdateChecker.swift": {
+    "mtime": 1786151474.9376776,
+    "ast_hash": "635427c0fea4eb8f80e5e0719395e0c4",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Update/UpdateProgress.swift": {
+    "mtime": 1787500306.5120242,
+    "ast_hash": "30077005b9e142fc163c013537530f14",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/Update/Updater.swift": {
+    "mtime": 1787500306.512431,
+    "ast_hash": "7fd5eff62c09f869b37184af48168bb6",
+    "semantic_hash": ""
+  },
+  "Sources/Whisper/WhisperApp.swift": {
+    "mtime": 1787500306.512938,
+    "ast_hash": "031e0b7d427aa654db7d837fc3199c8e",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/AudioDeviceSelectionTests.swift": {
+    "mtime": 1787500306.5133214,
+    "ast_hash": "952b8b00c9caf6291318e0821cfa40a6",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/PipelineTests.swift": {
+    "mtime": 1784699132.9494767,
+    "ast_hash": "ffd2c27e7806f772415e309c8c5696e0",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/PlaceholderTests.swift": {
+    "mtime": 1784599496.560407,
+    "ast_hash": "33a0325ad5747dcd14a383448509cbf7",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/RefusalGuardTests.swift": {
+    "mtime": 1783471898.2479272,
+    "ast_hash": "de6f5a47808dcea2188d44f6d71ddf51",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/SnapPlacementTests.swift": {
+    "mtime": 1783326593.1964262,
+    "ast_hash": "8539d6f2a7f0bdbe6adb259c464717f6",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/UpdateProgressTests.swift": {
+    "mtime": 1787500306.5136445,
+    "ast_hash": "2ac999d628f86ebfa97234e4d9b704a0",
+    "semantic_hash": ""
+  },
+  "scripts/benchmark-stt.py": {
+    "mtime": 1784024602.6190271,
+    "ast_hash": "02acc6cf7cbf61ebe9fe95cff8f0d177",
+    "semantic_hash": ""
+  },
+  "scripts/benchmark-tech-terms.py": {
+    "mtime": 1784699404.9912107,
+    "ast_hash": "ef7c896f01ecf644bab971b99bf1c450",
+    "semantic_hash": ""
+  },
+  "scripts/install-dev-cert.sh": {
+    "mtime": 1783466920.5481904,
+    "ast_hash": "4865910822a9f2a76fb0a4b595aa06d1",
+    "semantic_hash": ""
+  },
+  "scripts/make-app.sh": {
+    "mtime": 1784024184.371147,
+    "ast_hash": "deeed64605d4fc81545ddf22ad5fbcc3",
+    "semantic_hash": ""
+  },
+  "scripts/make-dmg.sh": {
+    "mtime": 1784023076.4175043,
+    "ast_hash": "491817d4ea9360def1bc9b6bdfcf100a",
+    "semantic_hash": ""
+  },
+  "scripts/make-pkg.sh": {
+    "mtime": 1783544814.2434564,
+    "ast_hash": "fc64ae80cababe4bd8252e940a0a4c49",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/App.xaml.cs": {
+    "mtime": 1786175530.2584546,
+    "ast_hash": "0f003dd231a5989fc0520a7a823da02c",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Audio/AudioRecorder.cs": {
+    "mtime": 1787500306.5152805,
+    "ast_hash": "69252314bc095d104e984d7a7d4b6ceb",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Hotkeys/HotkeyManager.cs": {
+    "mtime": 1783544814.244666,
+    "ast_hash": "ee5ca52536d2b7aaef6dc1e364349656",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Output/PasteService.cs": {
+    "mtime": 1783544814.2451415,
+    "ast_hash": "d8095edff1b1d138ce15586f96e1b94b",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Program.cs": {
+    "mtime": 1787500306.4751763,
+    "ast_hash": "fdaf00bf5119c3877a82adb4d050b244",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Security/CredentialStore.cs": {
+    "mtime": 1783544814.245437,
+    "ast_hash": "ea3829a8ce1369250d1809f1ed93e60f",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/TrayIcon.cs": {
+    "mtime": 1783550537.915363,
+    "ast_hash": "3cfd3e73e3b0186d2b27fa0716e36290",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Views/RecordingIndicatorWindow.xaml.cs": {
+    "mtime": 1786020987.6839647,
+    "ast_hash": "878e4fdc5839ffeccff1dff023872089",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Views/SettingsWindow.xaml.cs": {
+    "mtime": 1783556488.878344,
+    "ast_hash": "a343f9a9050952d1a6b357f57dcfe392",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.App/Whisper.App.csproj": {
+    "mtime": 1787500306.4755118,
+    "ast_hash": "80fdce925168814538004c48d8b186e8",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Models/AppSettings.cs": {
+    "mtime": 1783555997.835833,
+    "ast_hash": "557953d01fb488fa3df192f664d87cd9",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Models/HotkeyBinding.cs": {
+    "mtime": 1783544814.2472334,
+    "ast_hash": "938d0a3fc543a3044f8278ce094d891b",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Models/VocabularyEntry.cs": {
+    "mtime": 1783544814.2474277,
+    "ast_hash": "87d877b5f221adefa9bfacaa060313b5",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/AnthropicCleanupProvider.cs": {
+    "mtime": 1783555949.8409336,
+    "ast_hash": "afe23738151780244a6c618217207224",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/DeepgramSttProvider.cs": {
+    "mtime": 1783555897.7121108,
+    "ast_hash": "f75716c9b5df169b1b7b0f11a540a52a",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/ElevenLabsSttProvider.cs": {
+    "mtime": 1783555896.2445693,
+    "ast_hash": "d14e43ea754cced903f5f082e09357f2",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/GeminiCleanupProvider.cs": {
+    "mtime": 1783555937.9273026,
+    "ast_hash": "6e8af4b463b755f042963dbc3412b64c",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/GroqSttProvider.cs": {
+    "mtime": 1783544814.2478845,
+    "ast_hash": "1a683d589562d37f938f1cfeea515879",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/ICleanupProvider.cs": {
+    "mtime": 1783544814.2480896,
+    "ast_hash": "8da76cd683d7bf332a1be895b2e6b9a4",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/ISttProvider.cs": {
+    "mtime": 1783544814.2485,
+    "ast_hash": "ac7adf1c6223126d900564a13636ac70",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/OllamaCleanupProvider.cs": {
+    "mtime": 1783555939.5210845,
+    "ast_hash": "13239b698ec2ae4e63aa978b8c8391f0",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/OpenAISttProvider.cs": {
+    "mtime": 1783555898.8833334,
+    "ast_hash": "94fcb96cdee0edbd0ac96a4d2227831e",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/OpenAiCompatCleanupProvider.cs": {
+    "mtime": 1783555926.8547115,
+    "ast_hash": "aff05925b67e6ad74ec153c498d9ca5f",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Providers/ProviderFactory.cs": {
+    "mtime": 1783556047.2521176,
+    "ast_hash": "a0b819d15cee61d2394b90216fc40e09",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/SettingsStore.cs": {
+    "mtime": 1783544814.2488983,
+    "ast_hash": "1f707b5f99192f009d145f25c0b2404e",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/UpdateChecker.cs": {
+    "mtime": 1786170794.1025403,
+    "ast_hash": "eae0a1f6beb5e1e04b9197e79f1d99ef",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Updater.cs": {
+    "mtime": 1786170820.5648448,
+    "ast_hash": "9c3cbcb16ee44bc67ee74f70e0503415",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.Core/Whisper.Core.csproj": {
+    "mtime": 1783544814.249265,
+    "ast_hash": "ceb41df1fe8eb0316c0972a6289a59c7",
+    "semantic_hash": ""
+  },
+  "windows/Whisper.sln": {
+    "mtime": 1783544814.2494316,
+    "ast_hash": "c92b5ecee562aa7b55a9937d963fc76e",
+    "semantic_hash": ""
+  },
+  "windows/tools/MicFallbackCheck/MicFallbackCheck.csproj": {
+    "mtime": 1787500306.5158525,
+    "ast_hash": "f3c3fb71f310e44e23969d54d91d3cc6",
+    "semantic_hash": ""
+  },
+  "windows/tools/MicFallbackCheck/Program.cs": {
+    "mtime": 1787500306.516315,
+    "ast_hash": "9359706743a5680d203a1f358ecd44c7",
+    "semantic_hash": ""
+  },
+  ".github/workflows/release.yml": {
+    "mtime": 1787500306.5095236,
+    "ast_hash": "70a2ee4e152667e94074253ad07243ac",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1787500306.4748151,
+    "ast_hash": "7c189405623bb8a9bab5f4774e4a8390",
+    "semantic_hash": ""
+  },
+  "docs/ONE-SHOT-BUILD-PROMPT.md": {
+    "mtime": 1785055015.5576565,
+    "ast_hash": "65b921842d913bbce74163f61cc845cf",
+    "semantic_hash": ""
+  },
+  "docs/goals/whisper-app/goal.md": {
+    "mtime": 1783281058.7170305,
+    "ast_hash": "b1858883113b19bb6aa6bf2afcdb484a",
+    "semantic_hash": ""
+  },
+  "docs/goals/whisper-app/state.yaml": {
+    "mtime": 1783282412.4009278,
+    "ast_hash": "78b2883bd2817b1cdd7853fbd36fab41",
+    "semantic_hash": ""
+  },
+  "docs/performance.md": {
+    "mtime": 1784699845.9278402,
+    "ast_hash": "bd5d771d7d1854b078cce55e2200ad90",
+    "semantic_hash": ""
+  },
+  "windows/README.md": {
+    "mtime": 1787500306.514595,
+    "ast_hash": "0a90b0345a43933b882fb4f93450b7cf",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_128x128.png": {
+    "mtime": 1783550492.5478606,
+    "ast_hash": "966db9316d41577455184bc743850456",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_128x128@2x.png": {
+    "mtime": 1783550492.5617478,
+    "ast_hash": "8d7a99033578540c47f70c25f9b18554",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_16x16.png": {
+    "mtime": 1783550492.5297134,
+    "ast_hash": "44a0422f35fcf619f9f73738aed7876f",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_16x16@2x.png": {
+    "mtime": 1783550492.532964,
+    "ast_hash": "a4d3cf570c4935c50b3ad118c8c179d4",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_256x256.png": {
+    "mtime": 1783550492.5754042,
+    "ast_hash": "8d7a99033578540c47f70c25f9b18554",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_256x256@2x.png": {
+    "mtime": 1783550492.6193132,
+    "ast_hash": "21b6daaa6209d09abc3aae27d146e6bd",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_32x32.png": {
+    "mtime": 1783550492.5365934,
+    "ast_hash": "a4d3cf570c4935c50b3ad118c8c179d4",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_32x32@2x.png": {
+    "mtime": 1783550492.541529,
+    "ast_hash": "60ed9534c1e3484a3153729192ccc85b",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_512x512.png": {
+    "mtime": 1783550492.6649659,
+    "ast_hash": "21b6daaa6209d09abc3aae27d146e6bd",
+    "semantic_hash": ""
+  },
+  "Resources/AppIcon.iconset/icon_512x512@2x.png": {
+    "mtime": 1783550492.779248,
+    "ast_hash": "60208c7173d66db0be21224858f37438",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/low-pulse/record-error.wav": {
+    "mtime": 1783306277.490515,
+    "ast_hash": "1f4a9ae88e50301a8b814d9a755e25b0",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/low-pulse/record-start.wav": {
+    "mtime": 1783306277.4913619,
+    "ast_hash": "b7de91ca80dbfb8879fe072d955152fb",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/low-pulse/record-stop.wav": {
+    "mtime": 1783306277.4920602,
+    "ast_hash": "2477ea06200d130cd762003e0dad230b",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/record-error.wav": {
+    "mtime": 1783295174.694682,
+    "ast_hash": "f5a562e229d3f8276bcd79362289eca6",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/record-start.wav": {
+    "mtime": 1783295174.6250417,
+    "ast_hash": "406a69b89dfac04b2ec39d9f7d39af2e",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/record-stop.wav": {
+    "mtime": 1783295174.6624177,
+    "ast_hash": "636b08fa354d9a75c0546705a993fedd",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/soft-chime/record-error.wav": {
+    "mtime": 1783306277.4931018,
+    "ast_hash": "9f29f8c09b002308ef5da925803c0a86",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/soft-chime/record-start.wav": {
+    "mtime": 1783306277.4938197,
+    "ast_hash": "8038dd7dfaa51b10bf4994d044e37b90",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/soft-chime/record-stop.wav": {
+    "mtime": 1783306277.4943824,
+    "ast_hash": "eb154ec238dd038c92ee4f33e8d83014",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/subtle-click/record-error.wav": {
+    "mtime": 1783306277.4952543,
+    "ast_hash": "46d7ec3b94358a03f1042ac550d11600",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/subtle-click/record-start.wav": {
+    "mtime": 1783306277.4956882,
+    "ast_hash": "8db70ed6f98fbc490c4e7bc78f761de7",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/subtle-click/record-stop.wav": {
+    "mtime": 1783306277.496398,
+    "ast_hash": "b2a67770c05f2405f486a8d9e5cb3d80",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/warm-tone/record-error.wav": {
+    "mtime": 1783306277.4972003,
+    "ast_hash": "3f16e5d7e6e9ba7c44300fc03eb44784",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/warm-tone/record-start.wav": {
+    "mtime": 1783306277.4976492,
+    "ast_hash": "1c807adf2ae52bf0d5fc8cb3c520511c",
+    "semantic_hash": ""
+  },
+  "Resources/Sounds/warm-tone/record-stop.wav": {
+    "mtime": 1783306277.498144,
+    "ast_hash": "cc089e6cc9d4818c0449542988e50139",
+    "semantic_hash": ""
+  },
+  "Tests/WhisperTests/HotkeyMonitorTests.swift": {
+    "mtime": 1792194132.2291045,
+    "ast_hash": "a065bd5f4920f40610b57b92bef5febe",
+    "semantic_hash": ""
+  }
+}
